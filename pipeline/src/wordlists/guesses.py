@@ -43,17 +43,24 @@ def _parse_prefix_rules(
     return need_affix, rules
 
 
-def _expand_forms(dic: str, aff: str) -> set[str]:
+def expand_forms(dic: str, aff: str) -> set[str]:
     """All Hspell forms of length 4-6 (the lengths a 5-letter Guess can come from)."""
+    bare, prefixed = split_forms(dic, aff)
+    return bare | prefixed
+
+
+def split_forms(dic: str, aff: str) -> tuple[set[str], set[str]]:
+    """Hspell forms of length 4-6 as (listed as words, built by a prefix rule)."""
     need_affix, rules = _parse_prefix_rules(aff)
-    forms: set[str] = set()
+    bare: set[str] = set()
+    prefixed: set[str] = set()
     for line in dic.splitlines()[1:]:  # first line is the entry count
         stem, _, flags = line.partition("/")
         if not HEBREW_WORD.fullmatch(stem):
             continue
         stem = normalise(stem)
         if need_affix not in flags and len(stem) in SOURCE_LENGTHS:
-            forms.add(stem)
+            bare.add(stem)
         for flag in flags:
             for prefix, condition in rules.get(flag, ()):
                 if (
@@ -61,11 +68,11 @@ def _expand_forms(dic: str, aff: str) -> set[str]:
                     and HEBREW_WORD.fullmatch(prefix)
                     and condition.match(stem)
                 ):
-                    forms.add(prefix + stem)
-    return forms
+                    prefixed.add(prefix + stem)
+    return bare, prefixed
 
 
-def _corpus_counts(corpus: str) -> Counter[str]:
+def corpus_counts(corpus: str) -> Counter[str]:
     counts: Counter[str] = Counter()
     for line in corpus.splitlines():
         parts = line.split()
@@ -74,7 +81,7 @@ def _corpus_counts(corpus: str) -> Counter[str]:
     return counts
 
 
-def _variants(form: str) -> set[str]:
+def variants(form: str) -> set[str]:
     """Forms one non-initial vav or yod away from `form`."""
     # Interior only: ktiv male adds or drops these letters inside a word.
     inserted = {
@@ -90,11 +97,11 @@ def _variants(form: str) -> set[str]:
 
 def build_guesses(dic: str, aff: str, corpus: str) -> str:
     """Return the contents of `guesses.txt`."""
-    forms = _expand_forms(dic, aff)
+    forms = expand_forms(dic, aff)
     guesses = {form for form in forms if len(form) == WORD_LENGTH}
-    counts = _corpus_counts(corpus)
+    counts = corpus_counts(corpus)
     for form in forms:
-        for variant in _variants(form):
+        for variant in variants(form):
             if len(variant) == WORD_LENGTH and counts[variant] >= VARIANT_MIN_HITS:
                 guesses.add(variant)
     return "".join(f"{word}\n" for word in sorted(guesses))

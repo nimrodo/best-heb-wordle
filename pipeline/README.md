@@ -44,4 +44,43 @@ uv run pytest        # fixtures only, no downloads needed
 uv run ruff check . && uv run ruff format .
 ```
 
-Tests drive `build_guesses`, the single top-level build function.
+Tests drive `build_guesses` and `build_solutions`, the top-level build functions.
+
+## Solutions (`public/solutions.json`)
+
+A JSON array of `{"word": ..., "hard": bool}`, sorted by word. Candidates are
+5-letter Hspell forms (the Academy spelling; corpus-only variants are never
+Solutions). A candidate is kept if:
+
+1. Its OpenSubtitles count (summed over final-letter forms) is 100 or more:
+   500+ is a Common word, 100-499 a Hard word, under 100 is dropped. Inflected
+   forms count on their own.
+2. It is not in `blocklist.txt` (proper nouns, vulgar words; hand-edited).
+3. No vav/yod spelling variant of a *different length* has 100+ hits, so the
+   player is never misled when counting tiles. Those words stay valid Guesses.
+4. It is not Prefix-attached by Hspell's own rules: a form built by a prefix
+   rule is dropped unless Hspell also lists it as a word in its own right (a
+   dual reading). The definite article is stricter: ה plus any known 4-letter
+   word is dropped, rule or not.
+5. DictaBERT-joint's prefix head does not split it. The model, pinned to a
+   revision, loads with `trust_remote_code`, so it downloads and runs Python
+   from the model repo (about 715 MB). It runs only on candidates that survive
+   1-4, and it over-flags by design but still misses some.
+
+```sh
+uv sync --extra detector
+uv run wordlists-solutions \
+  --dic path/to/he_IL.dic --aff path/to/he_IL.aff \
+  --corpus path/to/he_full.txt --blocklist blocklist.txt \
+  --common-min-hits 500 \
+  --out ../public/solutions.json
+```
+
+`--common-min-hits` (default 500) sets where Common starts; the 100-hit floor
+is fixed.
+
+The report printed at the end gives the Common and Hard pool sizes. The last
+build gave 1,749 Common and 3,347 Hard words (5,096 in all) at the 500 cut-off. The detector module has no tests
+(it is the model boundary), so spot-check the output for Prefix-attached forms
+and names and add them to `blocklist.txt`.
+
