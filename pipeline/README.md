@@ -71,6 +71,9 @@ uv run wordlists-solutions \
   --out ../public/solutions.json
 ```
 
-The report printed at the end gives the Common and Hard pool sizes. Before the
-detector runs, the pools are 2,080 Common and 8,480 Hard words.
+The report printed at the end gives the Common and Hard pool sizes. The last
+build gave 1,230 Common and 4,609 Hard words (5,839 in all); before the
+detector ran, the pools were 2,080 and 8,480. The detector module has no tests
+(it is the model boundary), so spot-check the output for Prefix-attached forms
+and names and add them to `blocklist.txt`.
 

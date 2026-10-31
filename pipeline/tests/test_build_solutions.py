@@ -4,9 +4,11 @@ The Prefix-attached detector (DictaBERT in production) is replaced by a stub
 that flags the words it is told to.
 """
 
+import json
 from collections.abc import Iterable
 
 from wordlists import Solution, build_solutions
+from wordlists.solutions import solutions_json
 
 AFF = """\
 NEEDAFFIX j
@@ -57,7 +59,9 @@ def test_cutoff_1000_is_a_common_word() -> None:
 
 
 def test_counts_sum_across_final_letter_forms() -> None:
-    assert build(["ילדים"], ["ילדים 600", "ילדימ 400"]) == [Solution("ילדימ", False)]
+    assert build(["ילדים"], ["ילדים 600", "ילדימ 400"]) == [
+        Solution("ילדימ", hard=False)
+    ]
 
 
 def test_word_missing_from_corpus_is_excluded() -> None:
@@ -137,3 +141,11 @@ def test_blocklisted_word_is_excluded() -> None:
 def test_blocklist_ignores_comments_blank_lines_and_final_letters() -> None:
     blocklist = "# names\n\nילדים\n"
     assert build(["ילדים"], ["ילדים 500"], blocklist=blocklist) == []
+
+
+def test_solutions_json_is_a_valid_array_of_word_and_hard() -> None:
+    text = solutions_json([Solution("אבגדה", hard=True), Solution("תפוזי", hard=False)])
+    assert json.loads(text) == [
+        {"word": "אבגדה", "hard": True},
+        {"word": "תפוזי", "hard": False},
+    ]

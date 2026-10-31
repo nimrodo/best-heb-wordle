@@ -23,7 +23,7 @@ from wordlists.guesses import (
 
 COMMON_MIN_HITS = 1000
 # Below this a form is too rare to be a Solution at all.
-HARD_MIN_HITS = 100
+SOLUTION_MIN_HITS = 100
 
 PrefixDetector = Callable[[list[str]], set[str]]
 
@@ -40,7 +40,10 @@ def _parse_blocklist(blocklist: str) -> set[str]:
 
 
 def _has_misleading_variant(form: str, counts: dict[str, int]) -> bool:
-    """A common alternative spelling of another length would miscount the tiles."""
+    """A common alternative spelling of another length would miscount the tiles.
+
+    "Common" uses the same 100-hit floor that admits a variant as a Guess.
+    """
     return any(
         len(variant) != WORD_LENGTH and counts.get(variant, 0) >= VARIANT_MIN_HITS
         for variant in variants(form)
@@ -65,7 +68,7 @@ def build_solutions(
         form
         for form in expand_forms(dic, aff)
         if len(form) == WORD_LENGTH
-        and counts[form] >= HARD_MIN_HITS
+        and counts[form] >= SOLUTION_MIN_HITS
         and form not in blocked
         and not _has_misleading_variant(form, counts)
     )
@@ -78,8 +81,12 @@ def build_solutions(
 
 
 def solutions_json(solutions: list[Solution]) -> str:
-    entries = [{"word": s.word, "hard": s.hard} for s in solutions]
-    return json.dumps(entries, ensure_ascii=False, indent=0) + "\n"
+    # One entry per line keeps the start-up fetch small and diffs readable.
+    entries = (
+        json.dumps({"word": s.word, "hard": s.hard}, ensure_ascii=False)
+        for s in solutions
+    )
+    return "[\n" + ",\n".join(entries) + "\n]\n"
 
 
 def pool_report(solutions: list[Solution]) -> str:
