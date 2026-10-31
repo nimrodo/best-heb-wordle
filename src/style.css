@@ -76,15 +76,14 @@ h1 {
 
 button { color: inherit; border: 0; cursor: pointer; }
 .keyboard { display: grid; gap: 7px; width: min(100%, 460px); padding: 0 6px; margin-top: auto; }
-/* One key width for every key: the unit is a row of 11 (Enter and Backspace count 1.5, the rest 1). */
-.kb-row { --unit: calc((100% - 10 * 4px) / 11); display: flex; justify-content: center; gap: 4px; }
-.key-gap { flex: 0 0 var(--unit); }
+/* One key width for every key: the unit is a row of 9.5 (Enter and Backspace count 1.5, the rest 1). */
+.kb-row { --unit: calc((100% - 8 * 5px) / 9.5); display: flex; justify-content: center; gap: 5px; }
 .key {
   flex: 0 0 var(--unit); min-width: 0; height: 56px; padding: 0; font: inherit; font-size: 22px; font-weight: 600;
   border-radius: 14px; background: #231e5c; box-shadow: 0 3px 0 #0b0924;
 }
 .key:active { translate: 0 2px; box-shadow: 0 1px 0 #0b0924; }
-.key[data-key="enter"], .key[data-key="backspace"] { flex-basis: calc(var(--unit) * 1.5 + 2px); font-size: 13px; }
+.key[data-key="enter"], .key[data-key="backspace"] { flex-basis: calc(var(--unit) * 1.5); font-size: 13px; }
 /* Keys mirror tiles: present is hollow, not solid, so no corner marks are needed. */
 .key.correct { background: var(--mint); color: #012a1c; box-shadow: 0 3px 0 #0a6e4c, 0 0 14px #2dffb255; }
 .key.present { background: transparent; color: var(--amber); box-shadow: inset 0 0 0 2px var(--amber), 0 0 12px #ffc53155; }
