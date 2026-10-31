@@ -155,3 +155,5 @@ vite.config.ts.timestamp-*
 .claude/
 .playwright-mcp/
 .boost/
+node_modules/
+dist/
