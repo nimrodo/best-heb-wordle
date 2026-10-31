@@ -23,6 +23,7 @@ def build(
     *,
     blocklist: str = "",
     prefix_attached: Iterable[str] = (),
+    common_min_hits: int | None = None,
 ) -> list[Solution]:
     dic = f"{len(dic_words)}\n" + "\n".join(dic_words) + "\n"
     flagged = set(prefix_attached)
@@ -32,6 +33,7 @@ def build(
         "\n".join(corpus),
         blocklist,
         lambda words: flagged & set(words),
+        **({} if common_min_hits is None else {"common_min_hits": common_min_hits}),
     )
 
 
@@ -56,6 +58,14 @@ def test_cutoff_999_is_a_hard_word() -> None:
 
 def test_cutoff_1000_is_a_common_word() -> None:
     assert build(["אבגדה"], ["אבגדה 1000"]) == [Solution("אבגדה", hard=False)]
+
+
+def test_common_cutoff_is_configurable() -> None:
+    corpus = ["אבגדה 360"]
+    assert build(["אבגדה"], corpus) == [Solution("אבגדה", hard=True)]
+    assert build(["אבגדה"], corpus, common_min_hits=360) == [
+        Solution("אבגדה", hard=False)
+    ]
 
 
 def test_counts_sum_across_final_letter_forms() -> None:

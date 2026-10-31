@@ -68,8 +68,12 @@ uv sync --extra detector
 uv run wordlists-solutions \
   --dic path/to/he_IL.dic --aff path/to/he_IL.aff \
   --corpus path/to/he_full.txt --blocklist blocklist.txt \
+  --common-min-hits 1000 \
   --out ../public/solutions.json
 ```
+
+`--common-min-hits` (default 1,000) sets where Common starts; the 100-hit floor
+is fixed.
 
 The report printed at the end gives the Common and Hard pool sizes. The last
 build gave 1,230 Common and 4,609 Hard words (5,839 in all); before the

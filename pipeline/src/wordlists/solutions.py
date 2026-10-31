@@ -21,6 +21,7 @@ from wordlists.guesses import (
     variants,
 )
 
+# Default; the CLI can override it (--common-min-hits).
 COMMON_MIN_HITS = 1000
 # Below this a form is too rare to be a Solution at all.
 SOLUTION_MIN_HITS = 100
@@ -56,6 +57,7 @@ def build_solutions(
     corpus: str,
     blocklist: str,
     detect_prefix_attached: PrefixDetector,
+    common_min_hits: int = COMMON_MIN_HITS,
 ) -> list[Solution]:
     """Return the Solutions, sorted by word.
 
@@ -74,7 +76,7 @@ def build_solutions(
     )
     attached = detect_prefix_attached(candidates)
     return [
-        Solution(form, hard=counts[form] < COMMON_MIN_HITS)
+        Solution(form, hard=counts[form] < common_min_hits)
         for form in candidates
         if form not in attached
     ]
@@ -102,6 +104,12 @@ def main() -> None:
     parser.add_argument("--aff", type=Path, required=True, help="he_IL.aff")
     parser.add_argument("--corpus", type=Path, required=True, help="he_full.txt")
     parser.add_argument("--blocklist", type=Path, required=True, help="blocklist.txt")
+    parser.add_argument(
+        "--common-min-hits",
+        type=int,
+        default=COMMON_MIN_HITS,
+        help=f"hits from which a word is Common, not Hard (default {COMMON_MIN_HITS})",
+    )
     parser.add_argument("--out", type=Path, required=True, help="output solutions.json")
     args = parser.parse_args()
     # Imported here so the tests and `wordlists` need no torch install.
@@ -114,6 +122,7 @@ def main() -> None:
         read(args.corpus),
         read(args.blocklist),
         detect_prefix_attached,
+        args.common_min_hits,
     )
     args.out.write_text(solutions_json(solutions), encoding="utf-8")
     print(pool_report(solutions))
