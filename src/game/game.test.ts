@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { TOAST_LOADING, TOAST_NOT_IN_LIST, newPuzzle, reduce, type GameEvent, type GameState } from "./game";
+import { TOAST_LOADING, TOAST_NOT_IN_LIST, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game";
 
 const words = new Set(["שולחנ", "מחברת", "ספרימ", "ילדימ", "שמיימ", "מקלדת"]);
 
@@ -156,5 +156,29 @@ describe("win and loss", () => {
   test("events after the puzzle ends are ignored", () => {
     const won = submit(fresh(), "שולחנ");
     expect(type(won, "שול")).toEqual(won);
+  });
+});
+
+describe("restorePuzzle", () => {
+  const words = new Set(["שלום", "אבגדה", "שלומי"]);
+
+  test("rebuilds the board, keys and status from saved Guesses", () => {
+    const state = restorePuzzle({ solution: "שלומי", hard: true, guesses: ["אבגדה", "שלומי"], current: "" }, words);
+    expect(state.guesses.map((g) => g.word)).toEqual(["אבגדה", "שלומי"]);
+    expect(state.guesses[1].marks).toEqual(Array(5).fill("correct"));
+    expect(state.keys["ש"]).toBe("correct");
+    expect(state.status).toBe("won");
+    expect(state.hard).toBe(true);
+  });
+
+  test("keeps the half-typed Guess and stays in play", () => {
+    const state = restorePuzzle({ solution: "שלומי", hard: false, guesses: ["אבגדה"], current: "של" }, words);
+    expect(state.current).toBe("של");
+    expect(state.status).toBe("playing");
+  });
+
+  test("six wrong Guesses restore as lost", () => {
+    const six = Array(6).fill("אבגדה");
+    expect(restorePuzzle({ solution: "שלומי", hard: false, guesses: six, current: "" }, words).status).toBe("lost");
   });
 });

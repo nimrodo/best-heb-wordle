@@ -2,10 +2,11 @@ import "@fontsource/rubik/hebrew-400.css";
 import "@fontsource/rubik/hebrew-600.css";
 import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
-import { newPuzzle, reduce, type GameEvent, type GameState } from "./game/game";
+import { newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
 import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
 import { render, revealDuration } from "./ui";
-import { drawSolution, type SolutionEntry } from "./game/draw";
+import { drawUnplayed, type SolutionEntry } from "./game/draw";
+import { loadStore, saveStore } from "./game/persistence";
 import { loadGuesses, loadSolutions } from "./words";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -15,12 +16,23 @@ const solutions = await loadSolutions();
 let words: ReadonlySet<string> = new Set(solutions.map((s: SolutionEntry) => s.word));
 let loading = true;
 
-const randomPuzzle = () => {
-  const { word, hard } = drawSolution(solutions, Math.random);
-  return newPuzzle(word, words, { hard, loading });
-};
+let store = loadStore(localStorage);
 
-let state: GameState = randomPuzzle();
+function randomPuzzle(): GameState {
+  const { entry, played } = drawUnplayed(solutions, store.played, Math.random);
+  store = { ...store, played };
+  return newPuzzle(entry.word, words, { hard: entry.hard, loading });
+}
+
+// The Puzzle in progress is saved after every change, so a reload restores it.
+function persist(): void {
+  const { solution, hard, guesses, current } = state;
+  const puzzle = { solution, hard, guesses: guesses.map((g) => g.word), current };
+  store = { ...store, puzzle };
+  saveStore(localStorage, store);
+}
+
+let state: GameState = store.puzzle ? restorePuzzle(store.puzzle, words, { loading }) : randomPuzzle();
 // Input is ignored while a submitted Guess is being revealed.
 let revealing = false;
 
@@ -28,6 +40,7 @@ function dispatch(event: GameEvent): void {
   if (revealing) return;
   const before = state;
   state = reduce(state, event);
+  persist();
   if (state.guesses.length > before.guesses.length) {
     revealing = true;
     // Show the board and keys as they were, with only the new row animating.
@@ -43,6 +56,7 @@ function onKey(key: string): void {
   if (revealing) return;
   if (key === "new") {
     state = randomPuzzle();
+    persist();
     draw();
   } else dispatch(eventFromKeyName(key));
 }
@@ -58,6 +72,7 @@ window.addEventListener("keydown", (e) => {
   dispatch(event);
 });
 
+persist();
 draw();
 
 // Play starts at once; the Guess list swaps into the running Puzzle when it arrives.
