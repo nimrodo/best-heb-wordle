@@ -91,6 +91,27 @@ whatever it said. A word absent from `commonness.json` is judged on hits alone.
 present; an explicit path that is missing is an error). The report lists the
 promoted words for review.
 
+### Lemma rule (`lemma_commonness.json`)
+
+`nimble` still scores everyday inflected verb forms in a narrow band just under
+the bar (אגנוב 0.73, אעניש 0.71), the same as some rarer words. So a Hard word
+that `nimble` scored from 0.70 up to (not including) 0.75 is also promoted if
+`nimble` rates its **lemma** at 0.90 or more (גנב 0.99). The band and cut-off
+are fixed in `solutions.py` (`LEMMA_BAND`, `LEMMA_MIN_PROB`), measured in the
+issue #40 prototype (`prototype/inflected-verbs-report.md`). `--lemma-commonness`
+points at the lemma scores (default `lemma_commonness.json`, used when present).
+
+Hspell has no lemma data, so `lemmas.py` infers the lemma from the 3-consonant
+skeleton: the bare root if Hspell lists it, else the most frequent other form of
+the family. Known limits:
+
+- It picks a wrong lemma for some words (מגנומ, טוניק, תלולה), which can promote
+  a rare word, and about a quarter of the promoted words are nouns or adjectives
+  with an everyday root (חגיגי, אדומי). Skim the promoted list in the report.
+- It finds no lemma, or the wrong one, for some everyday words (אציית, דחליל),
+  and אקליט's lemma scores only 0.76, so those stay Hard.
+- It only reaches the 0.70-0.75 band. A word scored lower is not rescued.
+
 ### Scoring with `nimble` (`commonness.json`)
 
 The scores are produced by a separate script and committed, so the build never
@@ -108,13 +129,15 @@ uv run wordlists-commonness \
 
 It scores every candidate that is Hard by hits (it skips the slow prefix
 detector, so a few scored words may later be dropped). About 0.7 s per word,
-roughly 40 minutes in all. `commonness.json` (`--out`) maps each normalised
+roughly 40 minutes in all. It then scores the inferred lemma of every word that
+landed in the lemma rule's band, into `lemma_commonness.json` (`--lemma-out`),
+about 2 more minutes. `commonness.json` (`--out`) maps each normalised
 word to its probability, sorted, compact. It is saved every 25 words and read
 first on a rerun, so an interrupted run resumes and scored words are not
 re-asked. Words that are no longer Hard are dropped from the file.
 
 The report printed at the end gives the Common and Hard pool sizes. The last
-build gave 2,261 Common and 2,835 Hard words (5,096 in all) at the 500 cut-off, 512 of the Common ones promoted by `nimble`. The detector module has no tests
+build gave 2,328 Common and 2,768 Hard words (5,096 in all) at the 500 cut-off, 579 of the Common ones promoted by `nimble` or by its lemma. The detector module has no tests
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
 

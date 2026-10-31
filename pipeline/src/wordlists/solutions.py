@@ -21,15 +21,21 @@ from wordlists.guesses import (
     split_forms,
     variants,
 )
+from wordlists.lemmas import build_index, lemma_of
 
 # Default; the CLI can override it (--common-min-hits).
 COMMON_MIN_HITS = 500
 # Default; the CLI can override it (--commonness-min-prob).
 COMMONNESS_MIN_PROB = 0.90
+# A form scored in this band (measured in the issue #40 prototype) is Common if
+# the model rates its lemma at LEMMA_MIN_PROB or more. Fixed: not a CLI option.
+LEMMA_BAND = (0.70, 0.75)
+LEMMA_MIN_PROB = 0.90
 # Below this a form is too rare to be a Solution at all.
 SOLUTION_MIN_HITS = 100
 
 DEFAULT_COMMONNESS = Path("commonness.json")
+DEFAULT_LEMMA_COMMONNESS = Path("lemma_commonness.json")
 
 PrefixDetector = Callable[[list[str]], set[str]]
 
@@ -74,12 +80,27 @@ def _built_by_prefix(form: str, bare: set[str], prefixed: set[str]) -> bool:
 
 
 def is_common(
-    hits: int, probability: float | None, common_min_hits: int, min_prob: float
+    hits: int,
+    probability: float | None,
+    lemma_probability: float | None,
+    common_min_hits: int,
+    min_prob: float,
 ) -> bool:
-    """Promote only, never demote: the model scores inflected verbs too low."""
-    return hits >= common_min_hits or (
-        probability is not None and probability >= min_prob
+    """Promote only, never demote: the model scores inflected verbs too low.
+
+    The lemma rule rescues inflected forms the model scores just under the bar.
+    """
+    if hits >= common_min_hits:
+        return True
+    if probability is None:
+        return False
+    in_band = LEMMA_BAND[0] <= probability < LEMMA_BAND[1]
+    by_lemma = (
+        in_band
+        and lemma_probability is not None
+        and lemma_probability >= LEMMA_MIN_PROB
     )
+    return probability >= min_prob or by_lemma
 
 
 def candidates(
@@ -112,15 +133,19 @@ def build_solutions(
     common_min_hits: int = COMMON_MIN_HITS,
     commonness: dict[str, float] | None = None,
     commonness_min_prob: float = COMMONNESS_MIN_PROB,
+    lemma_commonness: dict[str, float] | None = None,
 ) -> list[Solution]:
     """Return the Solutions, sorted by word.
 
     `detect_prefix_attached` gets the surviving candidates and returns the ones
     that are Prefix-attached forms. It is slow in production, so it runs last.
     `commonness` maps a word to the model's probability that it is everyday; a
-    word missing from it is judged on hits alone.
+    word missing from it is judged on hits alone. `lemma_commonness` maps an
+    inferred lemma to the same probability.
     """
     commonness = commonness or {}
+    lemma_commonness = lemma_commonness or {}
+    index = build_index(dic, aff) if lemma_commonness else {}
     words, counts = candidates(dic, aff, corpus, blocklist)
     attached = detect_prefix_attached(words)
     solutions = []
@@ -128,8 +153,13 @@ def build_solutions(
         if form in attached:
             continue
         by_hits = counts[form] >= common_min_hits
+        lemma = lemma_of(form, index, counts) if index else None
         common = is_common(
-            counts[form], commonness.get(form), common_min_hits, commonness_min_prob
+            counts[form],
+            commonness.get(form),
+            lemma_commonness.get(lemma) if lemma else None,
+            common_min_hits,
+            commonness_min_prob,
         )
         solutions.append(
             Solution(form, hard=not common, promoted=common and not by_hits)
@@ -153,6 +183,18 @@ def pool_report(solutions: list[Solution]) -> str:
     if promoted:
         lines.append(f"Promoted by the model ({len(promoted)}): " + " ".join(promoted))
     return "\n".join(lines)
+
+
+def optional_scores(
+    parser: argparse.ArgumentParser, given: Path | None, default: Path
+) -> dict[str, float] | None:
+    """A scores file: used if present, an error if named explicitly but missing."""
+    path = given or default
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    if given:
+        parser.error(f"{path} does not exist")
+    return None
 
 
 def main() -> None:
@@ -183,15 +225,20 @@ def main() -> None:
         help="model probability from which a Hard word is promoted to Common "
         f"(default {COMMONNESS_MIN_PROB})",
     )
+    parser.add_argument(
+        "--lemma-commonness",
+        type=Path,
+        default=None,
+        help="lemma_commonness.json from wordlists-commonness; "
+        f"optional if absent (default {DEFAULT_LEMMA_COMMONNESS})",
+    )
     parser.add_argument("--out", type=Path, required=True, help="output solutions.json")
     args = parser.parse_args()
     read = lambda path: path.read_text(encoding="utf-8")
-    path = args.commonness or DEFAULT_COMMONNESS
-    commonness = None
-    if path.exists():
-        commonness = json.loads(read(path))
-    elif args.commonness:
-        parser.error(f"{path} does not exist")
+    commonness = optional_scores(parser, args.commonness, DEFAULT_COMMONNESS)
+    lemma_commonness = optional_scores(
+        parser, args.lemma_commonness, DEFAULT_LEMMA_COMMONNESS
+    )
     # Imported here so the tests and `wordlists` need no torch install.
     from wordlists.prefix_detector import detect_prefix_attached
 
@@ -204,6 +251,7 @@ def main() -> None:
         args.common_min_hits,
         commonness,
         args.commonness_min_prob,
+        lemma_commonness,
     )
     args.out.write_text(solutions_json(solutions), encoding="utf-8")
     print(pool_report(solutions))

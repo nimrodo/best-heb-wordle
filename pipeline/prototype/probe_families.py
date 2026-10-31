@@ -6,9 +6,8 @@ uv run python prototype/probe_families.py IN_DIR
 import sys
 from pathlib import Path
 
-from families import build_index, family
-
 from wordlists.guesses import corpus_counts
+from wordlists.lemmas import build_index, family
 
 EVERYDAY = ["אגנוב", "אעניש", "אתקרב"]
 RARER = ["אקליט", "אציית", "דחליל"]

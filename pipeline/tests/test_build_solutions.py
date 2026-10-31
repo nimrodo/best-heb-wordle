@@ -26,6 +26,7 @@ def build(
     common_min_hits: int | None = None,
     commonness: dict[str, float] | None = None,
     commonness_min_prob: float | None = None,
+    lemma_commonness: dict[str, float] | None = None,
 ) -> list[Solution]:
     dic = f"{len(dic_words)}\n" + "\n".join(dic_words) + "\n"
     flagged = set(prefix_attached)
@@ -37,6 +38,7 @@ def build(
         lambda words: flagged & set(words),
         **({} if common_min_hits is None else {"common_min_hits": common_min_hits}),
         commonness=commonness,
+        lemma_commonness=lemma_commonness,
         **(
             {}
             if commonness_min_prob is None
@@ -202,6 +204,46 @@ def test_commonness_threshold_is_configurable() -> None:
     assert build(
         ["אבגדה"], ["אבגדה 360"], commonness={"אבגדה": 0.5}, commonness_min_prob=0.5
     ) == [Solution("אבגדה", hard=False, promoted=True)]
+
+
+# Lemma rule: an inflected form scored 0.70-0.75 is Common if its lemma scores 0.90+.
+# אגנוב is a form of גנב (steal); ירגזי is rare although its own score is high.
+
+LEMMA_DIC = ["אגנוב", "גנב"]
+LEMMA_CORPUS = ["אגנוב 387", "גנב 5000"]
+
+
+def build_lemma(own: float, lemma: float | None) -> list[Solution]:
+    return build(
+        LEMMA_DIC,
+        LEMMA_CORPUS,
+        commonness={"אגנוב": own},
+        lemma_commonness=None if lemma is None else {"גנב": lemma},
+    )
+
+
+def test_form_in_the_band_is_promoted_by_its_lemma() -> None:
+    assert build_lemma(0.73, 0.95) == [Solution("אגנוב", hard=False, promoted=True)]
+
+
+def test_lemma_below_its_threshold_leaves_the_form_hard() -> None:
+    assert build_lemma(0.73, 0.89) == [Solution("אגנוב", hard=True)]
+
+
+def test_form_without_a_scored_lemma_stays_hard() -> None:
+    assert build_lemma(0.73, None) == [Solution("אגנוב", hard=True)]
+
+
+def test_form_below_the_band_is_not_promoted_by_its_lemma() -> None:
+    assert build_lemma(0.69, 0.95) == [Solution("אגנוב", hard=True)]
+
+
+def test_form_at_the_top_of_the_band_is_not_promoted_by_its_lemma() -> None:
+    assert build_lemma(0.75, 0.95) == [Solution("אגנוב", hard=True)]
+
+
+def test_form_with_a_high_own_score_but_a_rare_lemma_stays_hard() -> None:
+    assert build_lemma(0.789, 0.54) == [Solution("אגנוב", hard=True)]
 
 
 def test_report_lists_promoted_words() -> None:

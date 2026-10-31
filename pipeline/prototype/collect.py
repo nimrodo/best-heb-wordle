@@ -12,9 +12,8 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from families import build_index, family
-
 from wordlists.commonness import ENDPOINT, MODEL, QUESTION, restore_final_letters
+from wordlists.lemmas import build_index, family
 from wordlists.solutions import candidates
 
 EXAMPLES = ["אגנוב", "אעניש", "אתקרב", "אקליט", "אציית", "דחליל"]
