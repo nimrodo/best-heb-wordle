@@ -78,6 +78,28 @@ export function newPuzzle(
   return { solution, words, loading, hard, guesses: [], current: "", keys: {}, toast: null, status: "playing" };
 }
 
+// Rebuilds a Puzzle in progress from its saved Guesses. Saved Guesses were valid when
+// played, so they are scored without consulting the word list.
+export function restorePuzzle(
+  saved: { solution: string; hard: boolean; guesses: readonly string[]; current: string },
+  words: ReadonlySet<string>,
+  { loading = false } = {},
+): GameState {
+  const guesses = saved.guesses.map((word): Guess => ({ word, marks: score(word, saved.solution) }));
+  const status: Status = guesses.some((g) => g.word === saved.solution)
+    ? "won"
+    : guesses.length >= MAX_GUESSES
+      ? "lost"
+      : "playing";
+  return {
+    ...newPuzzle(saved.solution, words, { hard: saved.hard, loading }),
+    guesses,
+    current: status === "playing" ? saved.current : "",
+    keys: guesses.reduce(mergeKeys, {}),
+    status,
+  };
+}
+
 function submit(state: GameState): GameState {
   if (state.current.length < WORD_LENGTH) return { ...state, toast: TOAST_TOO_SHORT };
   if (!state.words.has(state.current)) {

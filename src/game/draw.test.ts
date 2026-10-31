@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { HARD_SHARE, drawSolution, type SolutionEntry } from "./draw";
+import { HARD_SHARE, drawSolution, drawUnplayed, type SolutionEntry } from "./draw";
 
 // mulberry32: a small seeded random source so the draw ratio is reproducible.
 function seeded(seed: number): () => number {
@@ -41,5 +41,35 @@ describe("drawSolution", () => {
   test("a pool without Common words still draws", () => {
     const hard = pool.filter((s) => s.hard);
     expect(drawSolution(hard, seeded(1)).hard).toBe(true);
+  });
+});
+
+describe("drawUnplayed", () => {
+  const small: SolutionEntry[] = [
+    { word: "a", hard: false },
+    { word: "b", hard: false },
+    { word: "c", hard: true },
+  ];
+
+  test("never repeats a played Solution until the pool is exhausted", () => {
+    const random = seeded(3);
+    let played: string[] = [];
+    const seen: string[] = [];
+    for (let i = 0; i < small.length; i++) {
+      const drawn = drawUnplayed(small, played, random);
+      seen.push(drawn.entry.word);
+      played = drawn.played;
+    }
+    expect(new Set(seen).size).toBe(small.length);
+  });
+
+  test("once exhausted the played list clears and play continues", () => {
+    const drawn = drawUnplayed(small, ["a", "b", "c"], seeded(1));
+    expect(drawn.played).toEqual([drawn.entry.word]);
+  });
+
+  test("played words that left the pool do not block the draw", () => {
+    const drawn = drawUnplayed(small, ["gone"], seeded(1));
+    expect(drawn.played).toEqual(["gone", drawn.entry.word]);
   });
 });
