@@ -1,9 +1,11 @@
 import { normalise, type GameEvent } from "./game";
 
 // On-screen key names are the letter itself, or "enter" / "backspace".
-// SI-1452 without the sofit keys. Row 3 puts Enter and Backspace at opposite ends.
+// SI-1452 without the sofit keys. "" is an empty slot where a sofit key would sit, so the
+// letters keep their columns and every key stays one width, as on QWERTY.
+// Row 3 puts Enter and Backspace at opposite ends.
 export const KEY_ROWS: readonly (readonly string[])[] = [
-  [..."קראטופ"],
+  [..."קראטו", "", "", "פ"],
   [..."שדגכעיחל"],
   ["enter", ..."זסבהנמצת", "backspace"],
 ];
