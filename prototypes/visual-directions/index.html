@@ -1,0 +1,259 @@
+<!doctype html>
+<!--
+  PROTOTYPE, THROWAWAY. Never becomes the real implementation.
+  Question: what should the Hebrew Wordle look and feel like?
+  Three variants of one screen, switch with ?variant=A|B|C or the arrows (and ← →).
+  Fake data: solution is שולחן, two guesses are pre-played. Type Hebrew letters + Enter to see the reveal.
+  Open directly (file://) on a desktop, or serve it and open on a phone:  python3 -m http.server -d prototypes/visual-directions
+-->
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PROTOTYPE – Hebrew Wordle visual directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gveret+Levin&family=Rubik:wght@400;600;800&family=Suez+One&family=Heebo:wght@500;800&display=swap" rel="stylesheet">
+<style>
+  :root { --tile: min(15.5vw, 66px); --gap: 6px; }
+  * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body { overflow-x: hidden; padding-bottom: 64px; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  #app { min-height: 100%; display: flex; flex-direction: column; align-items: center; }
+  .board { display: grid; gap: var(--gap); }
+  .row { display: grid; grid-template-columns: repeat(5, var(--tile)); gap: var(--gap); }
+  .tile { width: var(--tile); height: var(--tile); display: grid; place-items: center; position: relative; }
+  .kb { display: flex; flex-direction: column; gap: 7px; width: min(100%, 460px); padding: 0 6px; }
+  .kb .krow { display: flex; gap: 5px; justify-content: center; }
+  .key { flex: 1 1 0; min-width: 0; height: 52px; display: grid; place-items: center; font-size: 22px; }
+  .key.wide { flex: 1.6 1 0; font-size: 15px; }
+  .shake { animation: shake .4s; }
+  @keyframes shake { 20%,60% { translate: -7px 0 } 40%,80% { translate: 7px 0 } }
+
+  /* switcher (not part of any design) */
+  #switcher { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); z-index: 99; direction: ltr;
+    display: flex; align-items: center; gap: 12px; background: #111; color: #fff; padding: 8px 14px; border-radius: 99px;
+    font: 600 14px/1 system-ui, sans-serif; box-shadow: 0 4px 20px #0006; white-space: nowrap; }
+  #switcher button { background: #333; color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; }
+  #toast { position: fixed; top: 18%; left: 50%; transform: translateX(-50%); z-index: 50; padding: 10px 20px; opacity: 0;
+    transition: opacity .25s; pointer-events: none; font-size: 20px; }
+  #toast.on { opacity: 1; }
+
+  /* =========================================================
+     A  מחברת — school notebook, pen marks
+     ========================================================= */
+  [data-v=A] { --ink: #1c3f94; --red: #d6342c; --green: #1d8a4a; --orange: #e8801a; --pencil: #9a9a9a;
+    --line: #b9d3e8; background-color: #fbfbf4;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 22px 22px; font-family: 'Gveret Levin', cursive; color: var(--ink); }
+  [data-v=A] #app::before { content: ''; position: fixed; inset: 0 auto 0 auto; right: 14px; width: 2px; background: #e9788a; opacity: .7; }
+  [data-v=A] header { width: 100%; padding: 18px 22px 0; display: flex; align-items: flex-start; justify-content: space-between; }
+  [data-v=A] h1 { font-size: 46px; font-weight: 400; transform: rotate(-2deg); line-height: 1; }
+  [data-v=A] h1 u { text-decoration-color: var(--red); text-decoration-thickness: 3px; text-underline-offset: 6px; }
+  [data-v=A] .stamp { font-size: 22px; color: var(--red); border: 3px solid var(--red); border-radius: 8px; padding: 2px 12px;
+    transform: rotate(-7deg); margin-top: 6px; background: #fbfbf4cc; }
+  [data-v=A] .board { margin: 26px 0 22px; --gap: 0px; --tile: min(17vw, 70px); }
+  [data-v=A] .tile { font-size: calc(var(--tile) * .66); line-height: 1; }
+  [data-v=A] .tile .ch { position: relative; z-index: 2; }
+  [data-v=A] .tile { box-shadow: inset 0 -2px 0 #1c3f9422; }
+  [data-v=A] .tile.cur { background: #fff7; box-shadow: inset 0 -3px 0 var(--ink); }
+  /* pen marks, drawn with borders and gradients so each state differs by shape, not only colour */
+  [data-v=A] .tile::after { content: ''; position: absolute; inset: 4px; pointer-events: none; z-index: 1; transition: opacity .2s; opacity: 0; }
+  [data-v=A] .tile[data-s=ok]::after { opacity: 1; border: 3.5px solid var(--green); border-radius: 52% 48% 55% 45% / 48% 55% 45% 52%; rotate: -4deg; }
+  [data-v=A] .tile[data-s=ok] { color: var(--green); }
+  [data-v=A] .tile[data-s=mid]::after { opacity: 1; inset: auto 8px 7px 8px; height: 10px;
+    background: radial-gradient(circle at 50% 0, transparent 5px, var(--orange) 5.5px 8px, transparent 8.5px) 0 0 / 14px 10px repeat-x; }
+  [data-v=A] .tile[data-s=mid] { color: var(--orange); }
+  [data-v=A] .tile[data-s=no] { color: var(--pencil); }
+  [data-v=A] .tile[data-s=no]::after { opacity: .9; inset: 50% 6px auto 6px; height: 3px; background: var(--pencil); rotate: -12deg; }
+  [data-v=A] .tile.reveal { animation: penIn .55s var(--d) both; }
+  @keyframes penIn { 0% { scale: 1; } 40% { scale: 1.35; rotate: -8deg; } 100% { scale: 1; rotate: 0deg; } }
+  [data-v=A] .key { background: #fff; border-radius: 6px 10px 7px 9px; box-shadow: 1px 2px 0 #0003; border: 1.5px solid var(--ink); font-size: 24px; }
+  [data-v=A] .key[data-s=ok] { background: #cdeed9; border-color: var(--green); }
+  [data-v=A] .key[data-s=mid] { background: #ffe2c0; border-color: var(--orange); }
+  [data-v=A] .key[data-s=no] { background: #ececec; color: #aaa; border-color: #ccc; }
+  [data-v=A] .kb { margin-top: auto; padding-bottom: 14px; }
+  [data-v=A] #toast { background: #fff; border: 2px solid var(--ink); border-radius: 10px; transform: translateX(-50%) rotate(-2deg); }
+
+  /* =========================================================
+     B  לילה — neon arcade, guesses as lives
+     ========================================================= */
+  [data-v=B] { --bg: #0d0b26; --mint: #2dffb2; --amber: #ffc531; --dim: #2a2750; --pink: #ff4fa3;
+    background: radial-gradient(120% 70% at 50% 0, #2b1768 0, var(--bg) 60%); color: #efeaff; font-family: 'Rubik', sans-serif; }
+  [data-v=B] header { width: 100%; padding: 16px 18px 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+  [data-v=B] h1 { grid-column: 2; font-size: 30px; font-weight: 800; letter-spacing: .02em; color: #fff;
+    text-shadow: 0 0 8px var(--pink), 0 0 24px var(--pink); }
+  [data-v=B] .lives { display: flex; gap: 5px; justify-self: start; }
+  [data-v=B] .lives i { width: 11px; height: 22px; border-radius: 4px; background: var(--mint); box-shadow: 0 0 10px var(--mint); transition: .3s; }
+  [data-v=B] .lives i.spent { background: var(--dim); box-shadow: none; }
+  [data-v=B] .badge { margin-top: 14px; padding: 5px 16px 6px; border-radius: 99px; font-weight: 800; font-size: 15px; color: #1a0a00;
+    background: linear-gradient(90deg, var(--amber), #ff8a2a); box-shadow: 0 0 18px #ff9a2a99; }
+  [data-v=B] .board { margin: 20px 0; --gap: 7px; padding: 14px; border-radius: 22px; background: #14113a;
+    box-shadow: 0 0 0 1.5px #4d3fb8, 0 0 40px #5a3fd855 inset, 0 0 50px #5a3fd833; }
+  [data-v=B] .tile { border-radius: 12px; background: #1b1749; border: 2px solid #342d78; font-size: calc(var(--tile) * .6); font-weight: 800;
+    transition: background .15s, box-shadow .15s; }
+  [data-v=B] .tile.cur { border-color: #8f7dff; box-shadow: 0 0 14px #8f7dff88; }
+  [data-v=B] .tile[data-s=ok] { background: var(--mint); border-color: var(--mint); color: #012a1c; box-shadow: 0 0 22px #2dffb299; }
+  [data-v=B] .tile[data-s=mid] { background: transparent; border-color: var(--amber); color: var(--amber); box-shadow: 0 0 16px #ffc53166, inset 0 0 14px #ffc53155; }
+  [data-v=B] .tile[data-s=no] { background: #120f33; border-color: #25215a; color: #6a64a8; }
+  [data-v=B] .tile.reveal { animation: pop .5s var(--d) both; }
+  @keyframes pop { 0% { scale: 1 } 35% { scale: 1.28; translate: 0 -8px } 70% { scale: .94 } 100% { scale: 1 } }
+  [data-v=B] .key { background: #231e5c; border-radius: 14px; height: 56px; font-weight: 600; box-shadow: 0 3px 0 #0b0924; }
+  [data-v=B] .key:active { translate: 0 2px; box-shadow: 0 1px 0 #0b0924; }
+  [data-v=B] .key[data-s=ok] { background: var(--mint); color: #012a1c; box-shadow: 0 3px 0 #0a6e4c, 0 0 14px #2dffb255; }
+  [data-v=B] .key[data-s=mid] { background: var(--amber); color: #2d1d00; box-shadow: 0 3px 0 #8f6a00; }
+  [data-v=B] .key[data-s=no] { background: #15123a; color: #5b5598; }
+  [data-v=B] .kb { margin-top: auto; padding-bottom: 14px; }
+  [data-v=B] #toast { background: var(--pink); color: #fff; border-radius: 14px; font-weight: 800; box-shadow: 0 0 30px var(--pink); }
+
+  /* =========================================================
+     C  אריחים — Israeli cement floor tiles, flip to reveal
+     ========================================================= */
+  [data-v=C] { --wall: #dfe6e8; --grout: #7e8b8f; --teal: #12766f; --teal2: #0c544f; --ochre: #e6a52c; --ochre2: #c4821a;
+    --slate: #4a5558; --paper: #f6f2ea; background: var(--wall); color: #1d2b2e; font-family: 'Heebo', sans-serif; }
+  [data-v=C] header { width: 100%; text-align: center; padding: 0 0 4px; }
+  [data-v=C] .strip { height: 22px; background:
+      conic-gradient(from 45deg at 50% 50%, var(--teal) 0 25%, var(--paper) 0 50%, var(--teal) 0 75%, var(--paper) 0) 0 0 / 22px 22px; }
+  [data-v=C] h1 { font-family: 'Suez One', serif; font-weight: 400; font-size: 42px; margin-top: 12px; color: var(--teal2); letter-spacing: .01em; }
+  [data-v=C] .plaque { display: inline-block; margin-top: 8px; padding: 4px 18px 5px; font-family: 'Suez One', serif; font-size: 17px; color: var(--paper);
+    background: var(--ochre2); border: 3px double var(--paper); outline: 3px solid var(--ochre2); }
+  [data-v=C] .board { margin: 18px 0; --gap: 3px; padding: 3px; background: var(--grout); --tile: min(16vw, 68px); }
+  [data-v=C] .tile { background: var(--paper); font-family: 'Suez One', serif; font-size: calc(var(--tile) * .56); color: #2a3538;
+    transform-style: preserve-3d; }
+  [data-v=C] .tile .ch { position: relative; z-index: 2; width: 74%; height: 74%; display: grid; place-items: center; border-radius: 50%; }
+  [data-v=C] .tile.cur { outline: 3px solid var(--teal); outline-offset: -3px; }
+  [data-v=C] .tile[data-s=ok] { background:
+      radial-gradient(circle, transparent 0 38%, var(--paper) 39% 43%, transparent 44% 56%, var(--paper) 57% 60%, transparent 61%),
+      conic-gradient(from 45deg at 50% 50%, var(--teal) 0 25%, var(--teal2) 0 50%, var(--teal) 0 75%, var(--teal2) 0); }
+  [data-v=C] .tile[data-s=ok] .ch { background: var(--paper); color: var(--teal2); }
+  [data-v=C] .tile[data-s=mid] { background: conic-gradient(var(--ochre) 25%, var(--ochre2) 0 50%, var(--ochre) 0 75%, var(--ochre2) 0) 0 0 / 50% 50%; }
+  [data-v=C] .tile[data-s=mid] .ch { background: var(--paper); color: #6b4608; border-radius: 6px; }
+  [data-v=C] .tile[data-s=no] { background: repeating-linear-gradient(45deg, var(--slate) 0 6px, #3f494c 6px 12px); color: #cfd8da; }
+  [data-v=C] .tile.reveal { animation: flip .7s var(--d) both; }
+  @keyframes flip { 0% { transform: rotateX(0) } 45% { transform: rotateX(90deg) } 55% { transform: rotateX(90deg) } 100% { transform: rotateX(0) } }
+  [data-v=C] .kb { margin-top: auto; padding: 8px 6px 14px; background: var(--paper); width: 100%; max-width: none; align-items: center; border-top: 3px solid var(--grout); }
+  [data-v=C] .kb .krow { width: min(100%, 460px); }
+  [data-v=C] .key { background: #fff; border-radius: 0; border: 2px solid var(--grout); font-family: 'Suez One', serif; height: 54px; }
+  [data-v=C] .key[data-s=ok] { background: var(--teal); border-color: var(--teal2); color: #fff; }
+  [data-v=C] .key[data-s=mid] { background: var(--ochre); border-color: var(--ochre2); color: #2c1c00; }
+  [data-v=C] .key[data-s=no] { background: var(--slate); border-color: #384144; color: #aab6b9; }
+  [data-v=C] #toast { background: var(--teal2); color: var(--paper); font-family: 'Suez One', serif; outline: 3px double var(--paper); outline-offset: -6px; padding: 14px 26px; }
+
+  @media (prefers-reduced-motion: reduce) { .tile.reveal, .shake { animation-duration: .01s !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+<div id="switcher"><button id="prev" aria-label="previous">‹</button><span id="vlabel"></span><button id="next" aria-label="next">›</button><button id="reset" aria-label="reset" title="reset board">↺</button></div>
+
+<script>
+// ---- fake game state (prototype only: no word list, any 5 Hebrew letters count as a word) ----
+const SOLUTION = 'שולחנ';                 // שולחן, stored with final letters normalised
+const PRESET = ['מחשבה', 'עולמו'];
+const FINAL = { נ: 'ן', מ: 'ם', כ: 'ך', פ: 'ף', צ: 'ץ' };
+const NORM = { ן: 'נ', ם: 'מ', ך: 'כ', ף: 'פ', ץ: 'צ' };
+const ROWS = [['ק','ר','א','ט','ו','נ','מ','פ'], ['ש','ד','ג','כ','ע','י','ח','ל'], ['ז','ס','ב','ה','צ','ת']];
+const VARIANTS = { A: 'מחברת (notebook)', B: 'לילה (neon arcade)', C: 'אריחים (cement tiles)' };
+const MAX = 6;
+
+let guesses = [], current = '', busy = false, keyStates = {}, won = false;
+const variant = (new URLSearchParams(location.search).get('variant') || 'A').toUpperCase();
+document.body.dataset.v = VARIANTS[variant] ? variant : 'A';
+const V = document.body.dataset.v;
+
+const norm = c => NORM[c] || c;
+const show = (c, i) => (i === 4 ? FINAL[c] || c : c);
+
+function score(guess) {
+  const res = Array(5).fill('no'), left = {};
+  for (let i = 0; i < 5; i++) if (guess[i] === SOLUTION[i]) res[i] = 'ok'; else left[SOLUTION[i]] = (left[SOLUTION[i]] || 0) + 1;
+  for (let i = 0; i < 5; i++) if (res[i] === 'no' && left[guess[i]] > 0) { res[i] = 'mid'; left[guess[i]]--; }
+  return res;
+}
+
+// ---- layout per variant (structure differs on purpose; board+keyboard are shared builders) ----
+const chrome = {
+  A: b => `<header><h1>ו<u>וורדל</u></h1><div class="stamp">מילה קשה</div></header>${b}`,
+  B: b => `<header><div class="lives">${'<i></i>'.repeat(MAX)}</div><h1>וורדל</h1></header><div class="badge">🔥 מילה קשה</div>${b}`,
+  C: b => `<header><div class="strip"></div><h1>וורדל</h1><div class="plaque">מילה קשה</div></header>${b}`,
+};
+chrome.A = b => `<header><h1><u>וורדל</u></h1><div class="stamp">מילה קשה</div></header>${b}`;
+
+function build() {
+  const board = `<div class="board">${Array.from({ length: MAX }, () =>
+    `<div class="row">${'<div class="tile"><span class="ch"></span></div>'.repeat(5)}</div>`).join('')}</div>`;
+  const kb = `<div class="kb">${ROWS.map((r, i) => `<div class="krow">${i === 2 ? '<button class="key wide" data-k="Enter">אישור</button>' : ''}${
+    r.map(l => `<button class="key" data-k="${l}">${l}</button>`).join('')}${i === 2 ? '<button class="key wide" data-k="Backspace">⌫</button>' : ''}</div>`).join('')}</div>`;
+  document.getElementById('app').innerHTML = chrome[V](board) + kb;
+}
+
+const tiles = r => document.querySelectorAll('.row')[r].querySelectorAll('.tile');
+
+function paintRow(r, word, states) {
+  tiles(r).forEach((t, i) => {
+    t.querySelector('.ch').textContent = word[i] ? show(word[i], i) : '';
+    t.classList.toggle('cur', !states && r === guesses.length && i === Math.min(word.length, 4) && !busy && !won);
+    if (states) t.dataset.s = states[i]; else delete t.dataset.s;
+  });
+}
+function paintKeys() {
+  document.querySelectorAll('.key[data-k]').forEach(k => { const s = keyStates[k.dataset.k]; if (s) k.dataset.s = s; else delete k.dataset.s; });
+  document.querySelectorAll('.lives i').forEach((p, i) => p.classList.toggle('spent', i < guesses.length));
+}
+function applyKeys(word, states) {
+  const rank = { no: 1, mid: 2, ok: 3 };
+  word.split('').forEach((c, i) => { if (!keyStates[c] || rank[states[i]] > rank[keyStates[c]]) keyStates[c] = states[i]; });
+}
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 1600); }
+
+function submit() {
+  if (busy || won || guesses.length >= MAX) return;
+  const r = guesses.length;
+  if (current.length < 5) { const row = document.querySelectorAll('.row')[r]; row.classList.remove('shake'); void row.offsetWidth; row.classList.add('shake'); toast('אין מספיק אותיות'); return; }
+  const word = current, states = score(word);
+  busy = true;
+  tiles(r).forEach((t, i) => {
+    t.style.setProperty('--d', `${i * 0.28}s`);
+    t.classList.add('reveal');
+    setTimeout(() => { t.dataset.s = states[i]; t.classList.remove('cur'); }, i * 280 + 260);   // swap colour at the mid-point of the motion
+  });
+  setTimeout(() => {
+    tiles(r).forEach(t => t.classList.remove('reveal'));
+    guesses.push(word); current = ''; busy = false; applyKeys(word, states); paintKeys();
+    if (word === SOLUTION) { won = true; toast('כל הכבוד!'); } else if (guesses.length >= MAX) toast('שולחן');
+    else paintRow(guesses.length, '', null);
+  }, 4 * 280 + 700);
+}
+function press(k) {
+  if (busy || won) return;
+  if (k === 'Enter') return submit();
+  if (k === 'Backspace') current = current.slice(0, -1);
+  else if (current.length < 5 && /^[א-ת]$/.test(k)) current += norm(k);
+  if (guesses.length < MAX) paintRow(guesses.length, current, null);
+}
+
+function init() {
+  guesses = []; current = ''; busy = false; won = false; keyStates = {};
+  build();
+  PRESET.forEach((w, r) => { const s = score(w); paintRow(r, w, s); guesses.push(w); applyKeys(w, s); });
+  current = 'שול'; paintRow(guesses.length, current, null); paintKeys();
+  document.getElementById('vlabel').textContent = `${V} · ${VARIANTS[V]}`;
+}
+
+document.addEventListener('click', e => { const k = e.target.closest('.key'); if (k) press(k.dataset.k); });
+document.addEventListener('keydown', e => {
+  const keys = Object.keys(VARIANTS);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') return go(keys[(keys.indexOf(V) + (e.key === 'ArrowRight' ? 1 : -1) + keys.length) % keys.length]);
+  if (e.key === 'Enter' || e.key === 'Backspace' || /^[א-ת]$/.test(e.key)) press(e.key);
+});
+function go(v) { const u = new URL(location); u.searchParams.set('variant', v); location.href = u; }
+const ks = Object.keys(VARIANTS);
+document.getElementById('prev').onclick = () => go(ks[(ks.indexOf(V) + ks.length - 1) % ks.length]);
+document.getElementById('next').onclick = () => go(ks[(ks.indexOf(V) + 1) % ks.length]);
+document.getElementById('reset').onclick = init;
+init();
+</script>
+</body>
+</html>
