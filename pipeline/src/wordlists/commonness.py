@@ -16,8 +16,8 @@ from wordlists.lemmas import build_index, lemma_of
 from wordlists.solutions import (
     COMMON_MIN_HITS,
     DEFAULT_LEMMA_COMMONNESS,
-    LEMMA_BAND,
     candidates,
+    in_lemma_band,
 )
 
 MODEL = "nimble"
@@ -67,7 +67,7 @@ def band_lemmas(
     lemmas = {
         lemma_of(word, index, counts)
         for word, score in scores.items()
-        if LEMMA_BAND[0] <= score < LEMMA_BAND[1]
+        if in_lemma_band(score)
     }
     return sorted(lemmas - {None})
 

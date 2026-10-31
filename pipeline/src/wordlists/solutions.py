@@ -31,6 +31,12 @@ COMMONNESS_MIN_PROB = 0.90
 # the model rates its lemma at LEMMA_MIN_PROB or more. Fixed: not a CLI option.
 LEMMA_BAND = (0.70, 0.75)
 LEMMA_MIN_PROB = 0.90
+
+
+def in_lemma_band(probability: float) -> bool:
+    return LEMMA_BAND[0] <= probability < LEMMA_BAND[1]
+
+
 # Below this a form is too rare to be a Solution at all.
 SOLUTION_MIN_HITS = 100
 

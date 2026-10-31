@@ -137,7 +137,7 @@ first on a rerun, so an interrupted run resumes and scored words are not
 re-asked. Words that are no longer Hard are dropped from the file.
 
 The report printed at the end gives the Common and Hard pool sizes. The last
-build gave 2,328 Common and 2,768 Hard words (5,096 in all) at the 500 cut-off, 579 of the Common ones promoted by `nimble` or by its lemma. The detector module has no tests
+build gave 2,328 Common and 2,767 Hard words (5,095 in all) at the 500 cut-off, 579 of the Common ones promoted by `nimble` or by its lemma. The detector module has no tests
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
 

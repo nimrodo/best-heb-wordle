@@ -234,6 +234,10 @@ def test_form_without_a_scored_lemma_stays_hard() -> None:
     assert build_lemma(0.73, None) == [Solution("אגנוב", hard=True)]
 
 
+def test_form_at_the_bottom_of_the_band_is_promoted_by_its_lemma() -> None:
+    assert build_lemma(0.70, 0.95) == [Solution("אגנוב", hard=False, promoted=True)]
+
+
 def test_form_below_the_band_is_not_promoted_by_its_lemma() -> None:
     assert build_lemma(0.69, 0.95) == [Solution("אגנוב", hard=True)]
 

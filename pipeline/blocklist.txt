@@ -64,3 +64,6 @@
 בודהה
 מרינה
 כושימ
+
+# Not standalone words (construct forms)
+גדולי
