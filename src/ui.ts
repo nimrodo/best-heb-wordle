@@ -8,6 +8,7 @@ import {
 } from "./game/game";
 import { KEY_ROWS } from "./game/keyboard";
 import { resultCopy } from "./game/result";
+import { hardLine, summarise, type Stats } from "./game/stats";
 import { reportUrl } from "./report";
 
 export type Handlers = { onKey: (key: string) => void };
@@ -16,7 +17,13 @@ export type Handlers = { onKey: (key: string) => void };
 // stays visible and a new-Puzzle button replaces the keyboard). The Meaning is null when the
 // Solution has none, or until definitions.json arrives.
 // `confirming` shows the abandon-Puzzle question over a Puzzle still in progress.
-export type EndView = { sheet: "pending" | "open" | "dismissed"; meaning: string | null; confirming: boolean };
+// `stats` is the snapshot shown in the stats sheet, or null while it is closed.
+export type EndView = {
+  sheet: "pending" | "open" | "dismissed";
+  meaning: string | null;
+  confirming: boolean;
+  stats: Stats | null;
+};
 
 // Reveal timing. Tiles pop one after another (index 0 is the rightmost tile in RTL),
 // and each tile takes its colour halfway through its own pop.
@@ -123,6 +130,28 @@ function abandonDialog(): string {
     </section>`;
 }
 
+function statsSheet(stats: Stats): string {
+  const sum = summarise(stats);
+  const tile = (value: number | string, label: string) =>
+    `<div class="stat"><b>${value}</b><span>${label}</span></div>`;
+  const most = Math.max(1, ...sum.distribution, sum.losses);
+  const bar = (label: string, count: number, lost = false) =>
+    `<div class="dist-row"><span>${label}</span><div class="dist-bar${lost ? " lost" : ""}" style="width:${Math.max(8, (count / most) * 100)}%">${count}</div></div>`;
+  return `
+    <div class="backdrop" data-key="close-stats"></div>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+      <button class="sheet-close" data-key="close-stats" aria-label="סגירה">✕</button>
+      <h2 id="stats-title">הסטטיסטיקה שלי</h2>
+      <div class="stat-tiles">
+        ${tile(sum.played, "חידות")}${tile(`${sum.winRate}%`, "אחוז הצלחה")}${tile(sum.streak, "רצף נוכחי")}${tile(sum.bestStreak, "רצף שיא")}
+      </div>
+      <div class="dist" aria-label="התפלגות הצלחות לפי מספר ניחושים">
+        ${sum.distribution.map((n, i) => bar(String(i + 1), n)).join("")}${bar("✕", sum.losses, true)}
+      </div>
+      <p class="sheet-sub">${hardLine(stats)}</p>
+    </section>`;
+}
+
 // Meanings are third-party text and go into innerHTML, so markup characters are escaped.
 const escapeHtml = (text: string) =>
   text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -147,6 +176,7 @@ function endSheet(state: GameState, meaning: string | null): string {
       ${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}
       ${meaning ? `<p class="meaning">${escapeHtml(meaning)}</p><p class="credit">${MEANING_CREDIT}</p>` : ""}
       <button class="new-puzzle" data-key="new">חידה חדשה</button>
+      <button class="link" data-key="stats">הסטטיסטיקה שלי</button>
       <a class="report" href="${reportUrl(solutionText(state))}" target="_blank" rel="noopener">דיווח על המילה</a>
     </section>`;
 }
@@ -181,17 +211,18 @@ export function render(
 ): void {
   const spent = state.guesses.length - (revealing ? 1 : 0);
   root.innerHTML = `
-    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1>${state.status === "playing" ? '<button class="header-new" data-key="new">חידה חדשה</button>' : ""}</header>
+    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1><div class="header-end"><button class="icon" data-key="stats" aria-label="סטטיסטיקה"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="17" rx="1"/><rect x="17" y="9" width="4" height="12" rx="1"/></svg></button>${state.status === "playing" ? '<button class="header-new" data-key="new">חידה חדשה</button>' : ""}</div></header>
     <div class="hard-slot">${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}</div>
     <div class="board">${board(state, revealing)}</div>
     ${view.sheet === "dismissed" ? '<button class="new-puzzle bar" data-key="new">חידה חדשה</button>' : `<div class="keyboard">${keyboard(state)}</div>`}
-    ${view.sheet === "open" ? endSheet(state, view.meaning) : ""}
-    ${view.confirming ? abandonDialog() : ""}`;
+    ${view.sheet === "open" && !view.stats ? endSheet(state, view.meaning) : ""}
+    ${view.confirming ? abandonDialog() : ""}
+    ${view.stats ? statsSheet(view.stats) : ""}`;
   showToast(state.toast);
   announceResult(announcement(state));
   if (revealing) startReveal(root);
   // The safe choice gets focus in the abandon question; the end sheet focuses its new-Puzzle button.
-  root.querySelector<HTMLElement>(view.confirming ? ".sheet .secondary" : ".sheet .new-puzzle")?.focus();
+  root.querySelector<HTMLElement>(view.confirming ? ".sheet .secondary" : view.stats ? ".sheet .sheet-close" : ".sheet .new-puzzle")?.focus();
   root.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
       handlers.onKey(button.dataset.key!);

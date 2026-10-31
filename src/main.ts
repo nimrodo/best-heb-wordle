@@ -7,6 +7,7 @@ import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
 import { render, revealDuration, type EndView } from "./ui";
 import { drawUnplayed, type SolutionEntry } from "./game/draw";
 import { loadStore, saveStore } from "./game/persistence";
+import { recordLoss, recordWin } from "./game/stats";
 import { loadDefinitions, loadGuesses, loadSolutions } from "./words";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -38,7 +39,7 @@ let revealing = false;
 
 // The end sheet opens this long after the last tile settles.
 const END_SHEET_DELAY_MS = 600;
-let view: EndView = { sheet: "pending", meaning: null, confirming: false };
+let view: EndView = { sheet: "pending", meaning: null, confirming: false, stats: null };
 let sheetTimer: ReturnType<typeof setTimeout> | undefined;
 
 function openEndSheet(): void {
@@ -56,18 +57,25 @@ function openEndSheet(): void {
   );
 }
 
+// Stats are saved with the next persist(), in the same write as the finished Puzzle.
+function recordEnd(): void {
+  const stats = state.status === "won" ? recordWin(store.stats, state.guesses.length, state.hard) : recordLoss(store.stats, state.hard);
+  store = { ...store, stats };
+}
+
 function startPuzzle(): void {
   clearTimeout(sheetTimer);
   state = randomPuzzle();
-  view = { sheet: "pending", meaning: null, confirming: false };
+  view = { sheet: "pending", meaning: null, confirming: false, stats: null };
   persist();
   draw();
 }
 
 function dispatch(event: GameEvent): void {
-  if (revealing || view.confirming) return;
+  if (revealing || view.confirming || view.stats) return;
   const before = state;
   state = reduce(state, event);
+  if (before.status === "playing" && state.status !== "playing") recordEnd();
   persist();
   if (state.guesses.length > before.guesses.length) {
     revealing = true;
@@ -87,6 +95,8 @@ function onKey(key: string): void {
   else if (key === "abandon") abandonPuzzle();
   else if (key === "continue") setConfirming(false);
   else if (key === "dismiss") dismissEndSheet();
+  else if (key === "stats") setStatsOpen(true);
+  else if (key === "close-stats") setStatsOpen(false);
   else dispatch(eventFromKeyName(key));
 }
 
@@ -101,9 +111,13 @@ function setConfirming(confirming: boolean): void {
   draw();
 }
 
+function setStatsOpen(open: boolean): void {
+  view = { ...view, stats: open ? store.stats : null };
+  draw();
+}
+
 function abandonPuzzle(): void {
-  // A loss, when `abandonOutcome` says so, is what the stats ticket (#29) will record here.
-  abandonOutcome(state);
+  if (abandonOutcome(state) === "lost") recordEnd();
   startPuzzle();
 }
 
@@ -117,6 +131,7 @@ function draw(): void {
 }
 
 window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && view.stats) return setStatsOpen(false);
   if (e.key === "Escape" && view.confirming) return setConfirming(false);
   if (e.key === "Escape" && view.sheet === "open") return dismissEndSheet();
   const event = eventFromKeyboard(e);

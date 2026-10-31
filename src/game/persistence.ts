@@ -1,4 +1,5 @@
 import { MAX_GUESSES, WORD_LENGTH } from "./game";
+import { emptyStats, isStats, type Stats } from "./stats";
 
 // The version lives in the key too, so a future format change starts from a clean slate.
 export const KEY = "hebwordle:v1";
@@ -16,8 +17,7 @@ export type Store = {
   // Solutions already drawn this cycle, including the one in progress.
   played: string[];
   puzzle: SavedPuzzle | null;
-  // Reserved for the stats ticket; kept opaque until then.
-  stats: Record<string, unknown>;
+  stats: Stats;
   seenHowToPlay: boolean;
 };
 
@@ -25,7 +25,7 @@ export const emptyStore = (): Store => ({
   version: VERSION,
   played: [],
   puzzle: null,
-  stats: {},
+  stats: emptyStats(),
   seenHowToPlay: false,
 });
 
@@ -50,8 +50,7 @@ function isStore(v: any): v is Store {
     Array.isArray(v.played) &&
     v.played.every((w: unknown) => typeof w === "string") &&
     (v.puzzle === null || isSavedPuzzle(v.puzzle)) &&
-    typeof v.stats === "object" &&
-    v.stats !== null &&
+    isStats(v.stats) &&
     typeof v.seenHowToPlay === "boolean"
   );
 }
