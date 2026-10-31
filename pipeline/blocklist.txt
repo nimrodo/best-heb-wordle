@@ -67,3 +67,43 @@
 
 # Not standalone words (construct forms)
 גדולי
+
+# Skim of the full Common list and a Hard sample (issue #22): proper nouns
+אדולפ
+אודסה
+אליהו
+אלסקה
+אנגוס
+איראנ
+עיראק
+בליני
+דקוטה
+יוחננ
+יונתנ
+יריחו
+מגנומ
+מדריד
+פרנקו
+ראובנ
+שמעונ
+סיידי
+אכילס
+בורדו
+קידמנ
+
+# Skim of the full Common list and a Hard sample (issue #22): vulgar, crude or distressing
+אזיינ
+זיינת
+תזיינ
+מאוננ
+נדפקת
+תדפוק
+מזונה
+סרסור
+אשכימ
+נאנסה
+זנותי
+
+# Skim of the full Common list (issue #22): unfamiliar
+נינגס
+רובכמ
