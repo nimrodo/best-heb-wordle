@@ -41,7 +41,7 @@ def words(solutions: list[Solution]) -> list[str]:
     return [s.word for s in solutions]
 
 
-# Frequency cut-offs: Common 1,000+, Hard word 100-999, under 100 excluded.
+# Frequency cut-offs: Common 500+, Hard word 100-499, under 100 excluded.
 
 
 def test_cutoff_below_100_is_excluded() -> None:
@@ -52,12 +52,12 @@ def test_cutoff_100_is_a_hard_word() -> None:
     assert build(["אבגדה"], ["אבגדה 100"]) == [Solution("אבגדה", hard=True)]
 
 
-def test_cutoff_999_is_a_hard_word() -> None:
-    assert build(["אבגדה"], ["אבגדה 999"]) == [Solution("אבגדה", hard=True)]
+def test_cutoff_499_is_a_hard_word() -> None:
+    assert build(["אבגדה"], ["אבגדה 499"]) == [Solution("אבגדה", hard=True)]
 
 
-def test_cutoff_1000_is_a_common_word() -> None:
-    assert build(["אבגדה"], ["אבגדה 1000"]) == [Solution("אבגדה", hard=False)]
+def test_cutoff_500_is_a_common_word() -> None:
+    assert build(["אבגדה"], ["אבגדה 500"]) == [Solution("אבגדה", hard=False)]
 
 
 def test_common_cutoff_is_configurable() -> None:
@@ -69,7 +69,7 @@ def test_common_cutoff_is_configurable() -> None:
 
 
 def test_counts_sum_across_final_letter_forms() -> None:
-    assert build(["ילדים"], ["ילדים 600", "ילדימ 400"]) == [
+    assert build(["ילדים"], ["ילדים 300", "ילדימ 200"]) == [
         Solution("ילדימ", hard=False)
     ]
 

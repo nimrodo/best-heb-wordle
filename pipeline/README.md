@@ -53,7 +53,7 @@ A JSON array of `{"word": ..., "hard": bool}`, sorted by word. Candidates are
 Solutions). A candidate is kept if:
 
 1. Its OpenSubtitles count (summed over final-letter forms) is 100 or more:
-   1,000+ is a Common word, 100-999 a Hard word, under 100 is dropped. Inflected
+   500+ is a Common word, 100-499 a Hard word, under 100 is dropped. Inflected
    forms count on their own.
 2. It is not in `blocklist.txt` (proper nouns, vulgar words; hand-edited).
 3. No vav/yod spelling variant of a *different length* has 100+ hits, so the
@@ -68,16 +68,17 @@ uv sync --extra detector
 uv run wordlists-solutions \
   --dic path/to/he_IL.dic --aff path/to/he_IL.aff \
   --corpus path/to/he_full.txt --blocklist blocklist.txt \
-  --common-min-hits 1000 \
+  --common-min-hits 500 \
   --out ../public/solutions.json
 ```
 
-`--common-min-hits` (default 1,000) sets where Common starts; the 100-hit floor
+`--common-min-hits` (default 500) sets where Common starts; the 100-hit floor
 is fixed.
 
 The report printed at the end gives the Common and Hard pool sizes. The last
-build gave 1,230 Common and 4,609 Hard words (5,839 in all); before the
-detector ran, the pools were 2,080 and 8,480. The detector module has no tests
+build gave 2,087 Common and 3,752 Hard words (5,839 in all) at the 500 cut-off
+(1,230 and 4,609 at the spec's original 1,000); before the detector ran, the
+pools were 2,080 and 8,480 at 1,000. The detector module has no tests
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
 

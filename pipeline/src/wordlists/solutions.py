@@ -22,7 +22,7 @@ from wordlists.guesses import (
 )
 
 # Default; the CLI can override it (--common-min-hits).
-COMMON_MIN_HITS = 1000
+COMMON_MIN_HITS = 500
 # Below this a form is too rare to be a Solution at all.
 SOLUTION_MIN_HITS = 100
 
