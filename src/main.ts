@@ -4,7 +4,7 @@ import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
 import { abandonOutcome, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
 import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
-import { render, revealDuration, type EndView } from "./ui";
+import { render, revealDuration, type EndView, type Overlay } from "./ui";
 import { drawUnplayed, type SolutionEntry } from "./game/draw";
 import { loadStore, saveStore } from "./game/persistence";
 import { recordLoss, recordWin } from "./game/stats";
@@ -39,7 +39,8 @@ let revealing = false;
 
 // The end sheet opens this long after the last tile settles.
 const END_SHEET_DELAY_MS = 600;
-let view: EndView = { sheet: "pending", meaning: null, confirming: false, stats: null, help: null };
+const freshView = (): EndView => ({ sheet: "pending", meaning: null, overlay: null });
+let view = freshView();
 let sheetTimer: ReturnType<typeof setTimeout> | undefined;
 
 function openEndSheet(): void {
@@ -66,13 +67,13 @@ function recordEnd(): void {
 function startPuzzle(): void {
   clearTimeout(sheetTimer);
   state = randomPuzzle();
-  view = { sheet: "pending", meaning: null, confirming: false, stats: null, help: null };
+  view = freshView();
   persist();
   draw();
 }
 
 function dispatch(event: GameEvent): void {
-  if (revealing || view.confirming || view.stats || view.help) return;
+  if (revealing || view.overlay) return;
   const before = state;
   state = reduce(state, event);
   if (before.status === "playing" && state.status !== "playing") recordEnd();
@@ -93,34 +94,22 @@ function onKey(key: string): void {
   if (revealing) return;
   if (key === "new") askBeforeNewPuzzle();
   else if (key === "abandon") abandonPuzzle();
-  else if (key === "continue") setConfirming(false);
   else if (key === "dismiss") dismissEndSheet();
-  else if (key === "stats") setStatsOpen(true);
-  else if (key === "close-stats") setStatsOpen(false);
-  else if (key === "help" || key === "how") setHelp("how");
-  else if (key === "about") setHelp("about");
-  else if (key === "close-help") setHelp(null);
+  else if (key === "stats") setOverlay({ kind: "stats", stats: store.stats });
+  else if (key === "how" || key === "about") setOverlay({ kind: key });
+  else if (key === "close") setOverlay(null);
   else dispatch(eventFromKeyName(key));
 }
 
 // A Puzzle in progress is only given up after the player confirms.
 function askBeforeNewPuzzle(): void {
-  if (state.status === "playing") setConfirming(true);
+  if (state.status === "playing") setOverlay({ kind: "confirm" });
   else startPuzzle();
 }
 
-function setConfirming(confirming: boolean): void {
-  view = { ...view, confirming };
-  draw();
-}
-
-function setStatsOpen(open: boolean): void {
-  view = { ...view, stats: open ? store.stats : null };
-  draw();
-}
-
-function setHelp(help: EndView["help"]): void {
-  view = { ...view, help };
+// Closing the about sheet closes the whole help flow; "how" is the way back to the rules.
+function setOverlay(overlay: Overlay | null): void {
+  view = { ...view, overlay };
   draw();
 }
 
@@ -139,10 +128,10 @@ function draw(): void {
 }
 
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && view.help) return setHelp(null);
-  if (e.key === "Escape" && view.stats) return setStatsOpen(false);
-  if (e.key === "Escape" && view.confirming) return setConfirming(false);
-  if (e.key === "Escape" && view.sheet === "open") return dismissEndSheet();
+  if (e.key === "Escape") {
+    if (view.overlay) return setOverlay(null);
+    if (view.sheet === "open") return dismissEndSheet();
+  }
   const event = eventFromKeyboard(e);
   if (!event) return;
   e.preventDefault();
@@ -151,7 +140,7 @@ window.addEventListener("keydown", (e) => {
 
 // The how-to-play sheet opens by itself on the first visit only.
 if (!store.seenHowToPlay) {
-  view = { ...view, help: "how" };
+  view = { ...view, overlay: { kind: "how" } };
   store = { ...store, seenHowToPlay: true };
 }
 persist();

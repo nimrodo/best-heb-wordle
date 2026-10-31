@@ -16,15 +16,14 @@ export type Handlers = { onKey: (key: string) => void };
 // The end sheet: "pending" while the last tile settles, "open", then "dismissed" (the board
 // stays visible and a new-Puzzle button replaces the keyboard). The Meaning is null when the
 // Solution has none, or until definitions.json arrives.
-// `confirming` shows the abandon-Puzzle question over a Puzzle still in progress.
-// `stats` is the snapshot shown in the stats sheet, or null while it is closed.
+// `overlay` is the one sheet open over the board and end sheet, if any: the abandon-Puzzle
+// question over a Puzzle in progress, the stats snapshot, or the how-to-play sheet and the
+// about sheet reached from it.
+export type Overlay = { kind: "confirm" } | { kind: "stats"; stats: Stats } | { kind: "how" } | { kind: "about" };
 export type EndView = {
   sheet: "pending" | "open" | "dismissed";
   meaning: string | null;
-  confirming: boolean;
-  stats: Stats | null;
-  // The how-to-play sheet or the about sheet reached from it, or null while both are closed.
-  help: "how" | "about" | null;
+  overlay: Overlay | null;
 };
 
 // Reveal timing. Tiles pop one after another (index 0 is the rightmost tile in RTL),
@@ -42,7 +41,7 @@ export function revealDuration(): number {
   return reducedMotion() ? REDUCED_FADE_MS : (WORD_LENGTH - 1) * STEP_MS + POP_MS;
 }
 
-type Row = { word: string; marks?: readonly Mark[]; reveal?: boolean; shake?: boolean; win?: boolean };
+type Row = { word: string; marks?: readonly (Mark | undefined)[]; reveal?: boolean; shake?: boolean; win?: boolean };
 
 function tile(letter: string, index: number, row: Row): string {
   const text = letter ? displayLetter(letter, index) : "";
@@ -121,15 +120,27 @@ function announcement(state: GameState): string {
   return sub ? `${headline} ${sub}` : `${headline} המילה הייתה: ${solutionText(state)}`;
 }
 
-function abandonDialog(): string {
+// Every sheet shares a backdrop that closes it, and (unless `closable` is false) a close button.
+// `dismiss` is the key both send; `title` is the heading the dialog is labelled by, with element id `id`.
+type Shell = { id: string; title: string; dismiss: string; cls?: string; role?: "dialog" | "alertdialog"; closable?: boolean };
+
+function sheet({ id, title, dismiss, cls = "", role = "dialog", closable = true }: Shell, content: string): string {
   return `
-    <div class="backdrop" data-key="continue"></div>
-    <section class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
-      <h2 id="confirm-title">להתחיל חידה חדשה?</h2>
-      <p class="sheet-sub">החידה הנוכחית תיחשב כהפסד.</p>
-      <button class="new-puzzle" data-key="abandon">כן, חידה חדשה</button>
-      <button class="secondary" data-key="continue">להמשיך לשחק</button>
+    <div class="backdrop" data-key="${dismiss}"></div>
+    <section class="${`sheet ${cls}`.trim()}" role="${role}" aria-modal="true" aria-labelledby="${id}">
+      ${closable ? `<button class="sheet-close" data-key="${dismiss}" aria-label="סגירה">✕</button>` : ""}
+      <h2 id="${id}">${title}</h2>
+      ${content}
     </section>`;
+}
+
+function abandonDialog(): string {
+  return sheet(
+    { id: "confirm-title", title: "להתחיל חידה חדשה?", dismiss: "close", role: "alertdialog", closable: false },
+    `<p class="sheet-sub">החידה הנוכחית תיחשב כהפסד.</p>
+      <button class="new-puzzle" data-key="abandon">כן, חידה חדשה</button>
+      <button class="secondary" data-key="close">להמשיך לשחק</button>`,
+  );
 }
 
 function statsSheet(stats: Stats): string {
@@ -139,19 +150,16 @@ function statsSheet(stats: Stats): string {
   const most = Math.max(1, ...sum.distribution, sum.losses);
   const bar = (label: string, count: number, lost = false) =>
     `<div class="dist-row"><span>${label}</span><div class="dist-bar${lost ? " lost" : ""}" style="width:${Math.max(8, (count / most) * 100)}%">${count}</div></div>`;
-  return `
-    <div class="backdrop" data-key="close-stats"></div>
-    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="stats-title">
-      <button class="sheet-close" data-key="close-stats" aria-label="סגירה">✕</button>
-      <h2 id="stats-title">הסטטיסטיקה שלי</h2>
-      <div class="stat-tiles">
+  return sheet(
+    { id: "stats-title", title: "הסטטיסטיקה שלי", dismiss: "close" },
+    `<div class="stat-tiles">
         ${tile(sum.played, "חידות")}${tile(`${sum.winRate}%`, "אחוז הצלחה")}${tile(sum.streak, "רצף נוכחי")}${tile(sum.bestStreak, "רצף שיא")}
       </div>
       <div class="dist" aria-label="התפלגות הצלחות לפי מספר ניחושים">
         ${sum.distribution.map((n, i) => bar(String(i + 1), n)).join("")}${bar("✕", sum.losses, true)}
       </div>
-      <p class="sheet-sub">${hardLine(stats)}</p>
-    </section>`;
+      <p class="sheet-sub">${hardLine(stats)}</p>`,
+  );
 }
 
 // Meanings are third-party text and go into innerHTML, so markup characters are escaped.
@@ -168,44 +176,37 @@ const EXAMPLES: { word: string; index: number; mark: Mark; text: string }[] = [
 ];
 
 function exampleRow({ word, index, mark }: (typeof EXAMPLES)[number]): string {
-  const marks: Mark[] = [];
-  marks[index] = mark;
+  const marks = Array.from({ length: word.length }, (_, i) => (i === index ? mark : undefined));
   const tiles = [...word].map((letter, i) => tile(letter, i, { word, marks }));
   return `<div class="row example-row">${tiles.join("")}</div>`;
 }
 
 function howToPlaySheet(): string {
-  return `
-    <div class="backdrop" data-key="close-help"></div>
-    <section class="sheet help" role="dialog" aria-modal="true" aria-labelledby="help-title">
-      <button class="sheet-close" data-key="close-help" aria-label="סגירה">✕</button>
-      <h2 id="help-title">איך משחקים</h2>
-      <ul class="rules">
+  return sheet(
+    { id: "help-title", title: "איך משחקים", dismiss: "close", cls: "help" },
+    `<ul class="rules">
         <li>לנחש את המילה הנסתרת בשישה ניחושים.</li>
         <li>כל ניחוש הוא מילה אמיתית בת חמש אותיות.</li>
         <li>אחרי כל ניחוש, האריחים מראים כמה קרוב הוא.</li>
       </ul>
       ${EXAMPLES.map((e) => `<div class="example">${exampleRow(e)}<p>${e.text}</p></div>`).join("")}
       <p class="sheet-note"><span class="hard-badge">מילה קשה</span> מילה נדירה יותר, והיא מסומנת מעל הלוח.</p>
-      <button class="new-puzzle" data-key="close-help">הבנתי, מתחילים</button>
-      <button class="link" data-key="about">אודות</button>
-    </section>`;
+      <button class="new-puzzle" data-key="close">הבנתי, מתחילים</button>
+      <button class="link" data-key="about">אודות</button>`,
+  );
 }
 
 function aboutSheet(): string {
-  return `
-    <div class="backdrop" data-key="close-help"></div>
-    <section class="sheet about" role="dialog" aria-modal="true" aria-labelledby="about-title">
-      <button class="sheet-close" data-key="close-help" aria-label="סגירה">✕</button>
-      <h2 id="about-title">אודות</h2>
-      <p class="sheet-sub">קוד המקור פתוח ברישיון AGPL-3.0:<br><a href="${SOURCE_URL}" target="_blank" rel="noopener">github.com/nimrodo/best-heb-wordle</a></p>
+  return sheet(
+    { id: "about-title", title: "אודות", dismiss: "close", cls: "about" },
+    `<p class="sheet-sub">קוד המקור פתוח ברישיון AGPL-3.0:<br><a href="${SOURCE_URL}" target="_blank" rel="noopener">github.com/nimrodo/best-heb-wordle</a></p>
       <ul class="credits">
         <li>רשימת המילים: Hspell</li>
         <li>שכיחות המילים: OpenSubtitles (CC BY-SA)</li>
         <li>הפירושים: ויקימילון העברי (CC BY-SA)</li>
       </ul>
-      <button class="secondary" data-key="how">חזרה להסבר</button>
-    </section>`;
+      <button class="secondary" data-key="how">חזרה להסבר</button>`,
+  );
 }
 
 const MEANING_CREDIT = "מקור: ויקימילון";
@@ -217,20 +218,17 @@ function endSheet(state: GameState, meaning: string | null): string {
     .map((letter, i) => `<div class="tile correct" aria-hidden="true">${displayLetter(letter, i)}</div>`)
     .join("");
   const lost = state.status === "lost";
-  return `
-    <div class="backdrop" data-key="dismiss"></div>
-    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-      <button class="sheet-close" data-key="dismiss" aria-label="סגירה">✕</button>
-      <h2 id="sheet-title">${headline}</h2>
-      ${sub ? `<p class="sheet-sub">${sub}</p>` : ""}
+  return sheet(
+    { id: "sheet-title", title: headline, dismiss: "dismiss" },
+    `${sub ? `<p class="sheet-sub">${sub}</p>` : ""}
       ${lost ? `<p class="sheet-sub">המילה הייתה:</p>` : ""}
       ${lost ? `<div class="row solution-row" role="img" aria-label="${solutionText(state)}">${solutionTiles}</div>` : ""}
       ${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}
       ${meaning ? `<p class="meaning">${escapeHtml(meaning)}</p><p class="credit">${MEANING_CREDIT}</p>` : ""}
       <button class="new-puzzle" data-key="new">חידה חדשה</button>
       <button class="link" data-key="stats">הסטטיסטיקה שלי</button>
-      <a class="report" href="${reportUrl(solutionText(state))}" target="_blank" rel="noopener">דיווח על המילה</a>
-    </section>`;
+      <a class="report" href="${reportUrl(solutionText(state))}" target="_blank" rel="noopener">דיווח על המילה</a>`,
+  );
 }
 
 // The toast is a live region that outlives re-renders (it sits outside the app root), so
@@ -252,6 +250,34 @@ function announceResult(message: string): void {
   if (region.textContent !== message) region.textContent = message;
 }
 
+function overlayHtml(overlay: Overlay): string {
+  switch (overlay.kind) {
+    case "confirm":
+      return abandonDialog();
+    case "stats":
+      return statsSheet(overlay.stats);
+    case "how":
+      return howToPlaySheet();
+    case "about":
+      return aboutSheet();
+  }
+}
+
+// The safe choice gets focus in the abandon question; the end sheet focuses its new-Puzzle button.
+function focusSelector(overlay: Overlay | null): string {
+  switch (overlay?.kind) {
+    case "confirm":
+      return ".sheet .secondary";
+    case "stats":
+      return ".sheet .sheet-close";
+    case "how":
+    case "about":
+      return ".sheet .new-puzzle, .sheet .secondary";
+    default:
+      return ".sheet .new-puzzle";
+  }
+}
+
 // While a Guess is being revealed the caller passes the state from before it, with that
 // Guess's row marked as revealing: the keys, lives and end sheet only catch up afterwards.
 export function render(
@@ -263,19 +289,15 @@ export function render(
 ): void {
   const spent = state.guesses.length - (revealing ? 1 : 0);
   root.innerHTML = `
-    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1><div class="header-end"><button class="icon" data-key="help" aria-label="איך משחקים"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a2.9 2.9 0 1 1 4.2 2.6c-.9.5-1.4 1-1.4 2"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg></button><button class="icon" data-key="stats" aria-label="סטטיסטיקה"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="17" rx="1"/><rect x="17" y="9" width="4" height="12" rx="1"/></svg></button>${state.status === "playing" ? '<button class="header-new" data-key="new">חידה חדשה</button>' : ""}</div></header>
+    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1><div class="header-end"><button class="icon" data-key="how" aria-label="איך משחקים"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a2.9 2.9 0 1 1 4.2 2.6c-.9.5-1.4 1-1.4 2"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg></button><button class="icon" data-key="stats" aria-label="סטטיסטיקה"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="17" rx="1"/><rect x="17" y="9" width="4" height="12" rx="1"/></svg></button>${state.status === "playing" ? '<button class="header-new" data-key="new">חידה חדשה</button>' : ""}</div></header>
     <div class="hard-slot">${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}</div>
     <div class="board">${board(state, revealing)}</div>
     ${view.sheet === "dismissed" ? '<button class="new-puzzle bar" data-key="new">חידה חדשה</button>' : `<div class="keyboard">${keyboard(state)}</div>`}
-    ${view.sheet === "open" && !view.stats && !view.help ? endSheet(state, view.meaning) : ""}
-    ${view.confirming ? abandonDialog() : ""}
-    ${view.stats ? statsSheet(view.stats) : ""}
-    ${view.help === "how" ? howToPlaySheet() : view.help === "about" ? aboutSheet() : ""}`;
+    ${view.overlay ? overlayHtml(view.overlay) : view.sheet === "open" ? endSheet(state, view.meaning) : ""}`;
   showToast(state.toast);
   announceResult(announcement(state));
   if (revealing) startReveal(root);
-  // The safe choice gets focus in the abandon question; the end sheet focuses its new-Puzzle button.
-  root.querySelector<HTMLElement>(view.confirming ? ".sheet .secondary" : view.stats ? ".sheet .sheet-close" : view.help ? ".sheet .new-puzzle, .sheet .secondary" : ".sheet .new-puzzle")?.focus();
+  root.querySelector<HTMLElement>(focusSelector(view.overlay))?.focus();
   root.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
       handlers.onKey(button.dataset.key!);
