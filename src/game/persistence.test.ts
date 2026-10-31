@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { emptyStats } from "./stats";
 import { KEY, emptyStore, loadStore, saveStore, type Store } from "./persistence";
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {
@@ -19,7 +20,7 @@ const store: Store = {
   version: 1,
   played: ["אבגדה", "שלום"],
   puzzle: { solution: "אבגדה", hard: true, guesses: ["שלומי"], current: "של" },
-  stats: { won: 3 },
+  stats: { ...emptyStats(), wins: [0, 2, 1, 0, 0, 0], streak: 3, bestStreak: 3 },
   seenHowToPlay: true,
 };
 
@@ -52,6 +53,11 @@ describe("store", () => {
     expect(loadStore(memoryStorage({ [KEY]: bad }))).toEqual(emptyStore());
     const badPuzzle = JSON.stringify({ ...store, puzzle: { solution: "אב", hard: false, guesses: [], current: "" } });
     expect(loadStore(memoryStorage({ [KEY]: badPuzzle }))).toEqual(emptyStore());
+  });
+
+  test("stats of the wrong shape reset quietly", () => {
+    const bad = JSON.stringify({ ...store, stats: { wins: [1] } });
+    expect(loadStore(memoryStorage({ [KEY]: bad }))).toEqual(emptyStore());
   });
 
   test("unavailable storage does not break loading or saving", () => {
