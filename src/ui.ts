@@ -30,15 +30,16 @@ type Row = { word: string; marks?: readonly Mark[]; reveal?: boolean; shake?: bo
 function tile(letter: string, index: number, row: Row): string {
   const text = letter ? displayLetter(letter, index) : "";
   const mark = row.marks?.[index];
+  const a11y = `role="img" aria-label="${describe(text, mark)}"`;
   const delay = reducedMotion() ? 0 : index * STEP_MS;
   if (row.reveal) {
     // The mark class is added mid-pop by startReveal; until then the tile looks like a typed one.
-    return `<div class="tile filled reveal" style="--d:${delay}ms" data-mark="${mark}">${text}</div>`;
+    return `<div class="tile filled reveal" style="--d:${delay}ms" data-mark="${mark}" ${a11y}>${text}</div>`;
   }
   const state = mark ?? (letter ? "filled" : "");
   const cls = row.win ? `${state} win` : state;
   const style = row.win ? ` style="--d:${index * WIN_STEP_MS}ms"` : "";
-  return `<div class="tile ${cls}"${style}>${text}</div>`;
+  return `<div class="tile ${cls}"${style} ${a11y}>${text}</div>`;
 }
 
 function board(state: GameState, revealing: boolean): string {
@@ -72,12 +73,22 @@ function startReveal(root: HTMLElement): void {
 }
 
 const KEY_LABEL: Record<string, string> = { enter: "Enter", backspace: "⌫" };
+const KEY_NAME: Record<string, string> = { enter: "שליחה", backspace: "מחיקה" };
+
+// Screen-reader names for a Mark.
+const MARK_NAME: Record<Mark, string> = { correct: "נכון", present: "במקום אחר", absent: "לא במילה" };
+
+function describe(letter: string, mark?: Mark): string {
+  if (!letter) return "ריק";
+  return mark ? `${letter}, ${MARK_NAME[mark]}` : letter;
+}
 
 function keyboard(state: GameState): string {
   return KEY_ROWS.map((row) => {
-    const keys = row.map(
-      (k) => `<button class="key ${state.keys[k] ?? ""}" data-key="${k}">${KEY_LABEL[k] ?? k}</button>`,
-    );
+    const keys = row.map((k) => {
+      const label = KEY_NAME[k] ?? describe(k, state.keys[k]);
+      return `<button class="key ${state.keys[k] ?? ""}" data-key="${k}" aria-label="${label}">${KEY_LABEL[k] ?? k}</button>`;
+    });
     return `<div class="kb-row">${keys.join("")}</div>`;
   }).join("");
 }
@@ -88,16 +99,28 @@ function banner(state: GameState): string {
   return "";
 }
 
+// The toast is a live region that outlives re-renders (it sits outside the app root), so
+// screen readers announce each new message instead of seeing a fresh element every time.
+function showToast(message: string | null): void {
+  const toast = document.getElementById("toast")!;
+  toast.classList.remove("show");
+  toast.textContent = message ?? "";
+  if (message) {
+    void toast.offsetWidth; // restart the fade animation
+    toast.classList.add("show");
+  }
+}
+
 // While a Guess is being revealed the caller passes the state from before it, with that
 // Guess's row marked as revealing: the keys, lives and end banner only catch up afterwards.
 export function render(root: HTMLElement, state: GameState, handlers: Handlers, revealing = false): void {
   const spent = state.guesses.length - (revealing ? 1 : 0);
   root.innerHTML = `
     <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1></header>
-    <div class="toast${state.toast ? " show" : ""}" role="status">${state.toast ?? ""}</div>
     <div class="board">${board(state, revealing)}</div>
     <div class="banner">${banner(state)}${state.status === "playing" ? "" : ' <button data-key="new">משחק חדש</button>'}</div>
     <div class="keyboard">${keyboard(state)}</div>`;
+  showToast(state.toast);
   if (revealing) startReveal(root);
   root.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
