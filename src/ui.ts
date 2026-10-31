@@ -7,9 +7,15 @@ import {
   type Mark,
 } from "./game/game";
 import { KEY_ROWS } from "./game/keyboard";
+import { resultCopy } from "./game/result";
 import { reportUrl } from "./report";
 
 export type Handlers = { onKey: (key: string) => void };
+
+// The end sheet: "pending" while the last tile settles, "open", then "dismissed" (the board
+// stays visible and a new-Puzzle button replaces the keyboard). The Meaning is null when the
+// Solution has none, or until definitions.json arrives.
+export type EndView = { sheet: "pending" | "open" | "dismissed"; meaning: string | null };
 
 // Reveal timing. Tiles pop one after another (index 0 is the rightmost tile in RTL),
 // and each tile takes its colour halfway through its own pop.
@@ -99,10 +105,38 @@ function keyboard(state: GameState): string {
 // Visible text of the Solution, with sofit letters restored.
 const solutionText = (state: GameState) => [...state.solution].map(displayLetter).join("");
 
-function banner(state: GameState): string {
-  if (state.status === "won") return "כל הכבוד!";
-  if (state.status === "lost") return `המילה הייתה: ${solutionText(state)}`;
-  return "";
+function announcement(state: GameState): string {
+  if (state.status === "playing") return "";
+  const { headline, sub } = resultCopy(state.status, state.guesses.length);
+  return sub ? `${headline} ${sub}` : `${headline} המילה הייתה: ${solutionText(state)}`;
+}
+
+// Meanings are third-party text and go into innerHTML, so markup characters are escaped.
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+const MEANING_CREDIT = "מקור: ויקימילון";
+
+function endSheet(state: GameState, meaning: string | null): string {
+  if (state.status === "playing") return "";
+  const { headline, sub } = resultCopy(state.status, state.guesses.length);
+  const solutionTiles = [...state.solution]
+    .map((letter, i) => `<div class="tile correct" aria-hidden="true">${displayLetter(letter, i)}</div>`)
+    .join("");
+  const lost = state.status === "lost";
+  return `
+    <div class="backdrop" data-key="dismiss"></div>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <button class="sheet-close" data-key="dismiss" aria-label="סגירה">✕</button>
+      <h2 id="sheet-title">${headline}</h2>
+      ${sub ? `<p class="sheet-sub">${sub}</p>` : ""}
+      ${lost ? `<p class="sheet-sub">המילה הייתה:</p>` : ""}
+      ${lost ? `<div class="row solution-row" role="img" aria-label="${solutionText(state)}">${solutionTiles}</div>` : ""}
+      ${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}
+      ${meaning ? `<p class="meaning">${escapeHtml(meaning)}</p><p class="credit">${MEANING_CREDIT}</p>` : ""}
+      <button class="new-puzzle" data-key="new">חידה חדשה</button>
+      <a class="report" href="${reportUrl(solutionText(state))}" target="_blank" rel="noopener">דיווח על המילה</a>
+    </section>`;
 }
 
 // The toast is a live region that outlives re-renders (it sits outside the app root), so
@@ -118,25 +152,32 @@ function showToast(message: string | null): void {
 }
 
 // The end-of-Puzzle result is announced through its own persistent live region; the visible
-// banner is re-rendered, so it cannot be one. Only a change of text is announced.
+// sheet is re-rendered, so it cannot be one. Only a change of text is announced.
 function announceResult(message: string): void {
   const region = document.getElementById("result")!;
   if (region.textContent !== message) region.textContent = message;
 }
 
 // While a Guess is being revealed the caller passes the state from before it, with that
-// Guess's row marked as revealing: the keys, lives and end banner only catch up afterwards.
-export function render(root: HTMLElement, state: GameState, handlers: Handlers, revealing = false): void {
+// Guess's row marked as revealing: the keys, lives and end sheet only catch up afterwards.
+export function render(
+  root: HTMLElement,
+  state: GameState,
+  view: EndView,
+  handlers: Handlers,
+  revealing = false,
+): void {
   const spent = state.guesses.length - (revealing ? 1 : 0);
   root.innerHTML = `
     <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1></header>
     <div class="hard-slot">${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}</div>
     <div class="board">${board(state, revealing)}</div>
-    <div class="banner">${banner(state)}${state.status === "playing" ? "" : ` <button data-key="new">משחק חדש</button> <a class="report" href="${reportUrl(solutionText(state))}" target="_blank" rel="noopener">דיווח על המילה</a>`}</div>
-    <div class="keyboard">${keyboard(state)}</div>`;
+    ${view.sheet === "dismissed" ? '<button class="new-puzzle bar" data-key="new">חידה חדשה</button>' : `<div class="keyboard">${keyboard(state)}</div>`}
+    ${view.sheet === "open" ? endSheet(state, view.meaning) : ""}`;
   showToast(state.toast);
-  announceResult(banner(state));
+  announceResult(announcement(state));
   if (revealing) startReveal(root);
+  root.querySelector<HTMLElement>(".sheet .new-puzzle")?.focus();
   root.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
       handlers.onKey(button.dataset.key!);

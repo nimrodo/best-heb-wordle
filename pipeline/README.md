@@ -144,8 +144,8 @@ and names and add them to `blocklist.txt`.
 ## Meanings (`definitions.json`)
 
 A JSON object mapping a Solution (normalised form, as in `solutions.json`) to its
-Meaning, sorted, compact. It lives in `pipeline/`, not `public/`, until the
-game loads it. Built only for Solutions, from the Hebrew Wiktionary dump
+Meaning, sorted, compact. It lives in `public/`, where the game loads it lazily on the
+end screen. Built only for Solutions, from the Hebrew Wiktionary dump
 (`hewiktionary-latest-pages-articles.xml.bz2`, from
 [dumps.wikimedia.org](https://dumps.wikimedia.org/hewiktionary/latest/)):
 
@@ -164,7 +164,7 @@ The dump is streamed, never loaded whole, and treated as untrusted data.
 ```sh
 uv run wordlists-definitions \
   --dump path/to/hewiktionary-latest-pages-articles.xml.bz2 \
-  --solutions ../public/solutions.json --out definitions.json
+  --solutions ../public/solutions.json --out ../public/definitions.json
 ```
 
 Takes a few seconds. The last build (dump of 2026-10) gave Meanings for 577 of

@@ -74,13 +74,6 @@ h1 {
   border: 2px solid var(--amber); color: var(--amber); box-shadow: 0 0 14px #ffc53155;
 }
 
-.banner { min-height: 2.5rem; margin: 0.5rem 0; font-weight: 800; }
-.banner button {
-  font: inherit; font-weight: 800; padding: 6px 16px; border-radius: 99px; background: var(--pink); color: var(--bg);
-  box-shadow: 0 0 18px var(--pink);
-}
-.banner .report { display: block; margin-top: 6px; font-size: 0.85rem; font-weight: 400; color: inherit; opacity: 0.75; }
-
 button { color: inherit; border: 0; cursor: pointer; }
 .keyboard { display: grid; gap: 7px; width: min(100%, 460px); padding: 0 6px; margin-top: auto; }
 .kb-row { display: flex; justify-content: center; gap: 5px; }
@@ -102,3 +95,26 @@ button { color: inherit; border: 0; cursor: pointer; }
   .lives i { transition: none; }
 }
 @keyframes fade { from { opacity: 0.4; } to { opacity: 1; } }
+
+/* End sheet: a bottom sheet over a dimmed board. Sliding is dropped under reduced motion. */
+.backdrop { position: fixed; inset: 0; z-index: 20; background: #05041599; }
+.sheet {
+  position: fixed; inset: auto 0 0; z-index: 21; margin: 0 auto; width: min(100%, 460px); padding: 28px 20px 24px;
+  border-radius: 26px 26px 0 0; background: var(--panel); display: grid; gap: 12px; justify-items: center;
+  box-shadow: 0 0 0 1.5px #4d3fb8, 0 -10px 50px #5a3fd855; animation: slide-up 0.35s both;
+}
+@keyframes slide-up { from { translate: 0 100%; } to { translate: 0 0; } }
+.sheet h2 { margin: 0; font-size: 30px; font-weight: 800; text-shadow: 0 0 14px var(--pink); }
+.sheet p { margin: 0; }
+.sheet-sub { font-size: 18px; }
+.sheet-close { position: absolute; top: 12px; inset-inline-start: 14px; font-size: 20px; padding: 6px 10px; background: none; }
+.solution-row { --tile: 48px; }
+.meaning { font-size: 17px; line-height: 1.5; }
+.credit { font-size: 13px; opacity: 0.7; }
+.new-puzzle {
+  font: inherit; font-weight: 800; font-size: 22px; width: 100%; padding: 14px; border-radius: 16px;
+  background: var(--pink); color: var(--bg); box-shadow: 0 0 22px var(--pink);
+}
+.new-puzzle.bar { width: min(100% - 24px, 460px); margin-top: auto; }
+.sheet .report { font-size: 0.85rem; color: inherit; opacity: 0.75; }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
