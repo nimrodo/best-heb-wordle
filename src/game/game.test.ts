@@ -30,6 +30,12 @@ describe("scoring", () => {
     expect(state.guesses[0].marks).toEqual(["absent", "absent", "present", "correct", "correct"]);
   });
 
+  test("two copies in the guess against one in the solution mark only one present", () => {
+    // Solution מחברת has one מ; the guess has two, neither in the right place.
+    const state = submit(fresh("מחברת"), "שמיימ");
+    expect(state.guesses[0].marks).toEqual(["absent", "present", "absent", "absent", "absent"]);
+  });
+
   test("marks exact matches as correct", () => {
     const state = submit(fresh("מחברת"), "מקלדת");
     expect(state.guesses[0].marks).toEqual(["correct", "absent", "absent", "absent", "correct"]);
@@ -63,6 +69,11 @@ describe("input", () => {
   test("niqqud and non-Hebrew characters are ignored", () => {
     const state = type(fresh(), "שָׁa1ו");
     expect(state.current).toBe("שו");
+  });
+
+  test("niqqud attached to a letter in one event is dropped, keeping the letter", () => {
+    const state = play(fresh(), { type: "letter", letter: "שָׁ" });
+    expect(state.current).toBe("ש");
   });
 
   test("letters beyond five are ignored", () => {

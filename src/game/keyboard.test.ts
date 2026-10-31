@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { KEY_ROWS, eventFromKeyboard } from "./keyboard";
+import { KEY_ROWS, eventFromKeyName, eventFromKeyboard } from "./keyboard";
 
 const press = (key: string, code = "", mods: Partial<KeyboardEvent> = {}) =>
   eventFromKeyboard({ key, code, ctrlKey: false, metaKey: false, altKey: false, ...mods });
@@ -38,4 +38,10 @@ test("Enter and Backspace map to their events", () => {
 test("other keys and shortcuts are ignored", () => {
   expect(press("Shift", "ShiftLeft")).toBeNull();
   expect(press("a", "KeyA", { metaKey: true })).toBeNull();
+});
+
+test("on-screen key names map to events", () => {
+  expect(eventFromKeyName("enter")).toEqual({ type: "enter" });
+  expect(eventFromKeyName("backspace")).toEqual({ type: "backspace" });
+  expect(eventFromKeyName("ש")).toEqual({ type: "letter", letter: "ש" });
 });

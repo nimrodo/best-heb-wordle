@@ -1,9 +1,8 @@
 import { normalise, type GameEvent } from "./game";
 
-export type KeyName = string | "enter" | "backspace";
-
+// On-screen key names are the letter itself, or "enter" / "backspace".
 // SI-1452 without the sofit keys. Row 3 puts Enter and Backspace at opposite ends.
-export const KEY_ROWS: readonly (readonly KeyName[])[] = [
+export const KEY_ROWS: readonly (readonly string[])[] = [
   [..."קראטופ"],
   [..."שדגכעיחל"],
   ["enter", ..."זסבהנמצת", "backspace"],
@@ -28,4 +27,9 @@ export function eventFromKeyboard(e: KeyInput): GameEvent | null {
   if (normalise(e.key) !== null) return { type: "letter", letter: e.key };
   const letter = LETTER_BY_CODE[e.code];
   return letter ? { type: "letter", letter } : null;
+}
+
+export function eventFromKeyName(key: string): GameEvent {
+  if (key === "enter" || key === "backspace") return { type: key };
+  return { type: "letter", letter: key };
 }

@@ -29,7 +29,9 @@ const NORMAL_TO_SOFIT = Object.fromEntries(Object.entries(SOFIT_TO_NORMAL).map((
 
 // Letters are stored in normal form; the sofit is only a display matter of position.
 export function normalise(letter: string): string | null {
-  const folded = SOFIT_TO_NORMAL[letter] ?? letter;
+  // Strip niqqud and cantillation marks (U+0591–U+05C7) so "שָׁ" counts as ש.
+  const bare = letter.replace(/[\u0591-\u05C7]/g, "");
+  const folded = SOFIT_TO_NORMAL[bare] ?? bare;
   return /^[א-ת]$/.test(folded) ? folded : null;
 }
 
