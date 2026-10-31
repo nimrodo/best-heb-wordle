@@ -7,6 +7,8 @@
   --text: #efeaff;
   --tile: min(14.5vw, 62px);
   --gap: 7px;
+  /* Absent tile and key outline: 3.7:1 or better against the board and tile backgrounds. */
+  --absent-edge: #6f66c4;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body {
@@ -28,6 +30,8 @@ h1 {
 .lives { display: flex; gap: 5px; justify-self: start; }
 .lives i { width: 11px; height: 22px; border-radius: 4px; background: var(--mint); box-shadow: 0 0 10px var(--mint); transition: 0.3s; }
 .lives i.spent { background: #2a2750; box-shadow: none; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .toast {
   position: fixed; top: 64px; left: 50%; translate: -50% 0; z-index: 10; padding: 10px 20px; border-radius: 14px;
@@ -51,7 +55,7 @@ h1 {
 /* Three states that differ by shape as well as colour: solid, hollow, dim with a border. */
 .tile.correct { background: var(--mint); border-color: var(--mint); color: #012a1c; box-shadow: 0 0 22px #2dffb299; }
 .tile.present { background: transparent; border-color: var(--amber); color: var(--amber); box-shadow: 0 0 16px #ffc53166, inset 0 0 14px #ffc53155; }
-.tile.absent { background: #120f33; border-color: #3a3485; color: #8a84c8; }
+.tile.absent { background: #120f33; border-color: var(--absent-edge); color: #8a84c8; }
 
 .tile.reveal { animation: pop 0.5s var(--d) both; }
 @keyframes pop {
@@ -66,7 +70,7 @@ h1 {
 
 .banner { min-height: 2.5rem; margin: 0.5rem 0; font-weight: 800; }
 .banner button {
-  font: inherit; font-weight: 800; padding: 6px 16px; border-radius: 99px; background: var(--pink); color: #fff;
+  font: inherit; font-weight: 800; padding: 6px 16px; border-radius: 99px; background: var(--pink); color: var(--bg);
   box-shadow: 0 0 18px var(--pink);
 }
 
@@ -82,7 +86,7 @@ button { color: inherit; border: 0; cursor: pointer; }
 /* Keys mirror tiles: present is hollow, not solid, so no corner marks are needed. */
 .key.correct { background: var(--mint); color: #012a1c; box-shadow: 0 3px 0 #0a6e4c, 0 0 14px #2dffb255; }
 .key.present { background: transparent; color: var(--amber); box-shadow: inset 0 0 0 2px var(--amber), 0 0 12px #ffc53155; }
-.key.absent { background: #15123a; color: #8a84c8; box-shadow: inset 0 0 0 1.5px #3a3485; }
+.key.absent { background: #15123a; color: #8a84c8; box-shadow: inset 0 0 0 1.5px var(--absent-edge); }
 
 /* Reduced motion: a short cross-fade in place of stagger, lift, shake and bounce. Glows stay. */
 @media (prefers-reduced-motion: reduce) {
