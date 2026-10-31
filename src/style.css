@@ -118,7 +118,7 @@ button { color: inherit; border: 0; cursor: pointer; }
 .secondary { font: inherit; font-size: 18px; width: 100%; padding: 12px; border-radius: 16px; background: none; color: inherit; box-shadow: 0 0 0 1.5px #4d3fb8; }
 .header-end { justify-self: end; display: flex; align-items: center; gap: 8px; }
 .icon { background: none; padding: 6px; display: grid; place-items: center; }
-.header-new { font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 12px; background: none; color: inherit; box-shadow: 0 0 0 1.5px #4d3fb8; }
+.header-new { white-space: nowrap; font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 12px; background: none; color: inherit; box-shadow: 0 0 0 1.5px #4d3fb8; }
 .new-puzzle.bar { width: min(100% - 24px, 460px); margin-top: auto; }
 .sheet .report { font-size: 0.85rem; color: inherit; opacity: 0.75; }
 @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
@@ -131,3 +131,15 @@ button { color: inherit; border: 0; cursor: pointer; }
 .dist-row { display: grid; grid-template-columns: 1.2em 1fr; gap: 8px; align-items: center; text-align: start; }
 .dist-bar { min-width: 1.6em; padding: 1px 8px; border-radius: 6px; background: var(--mint); color: #012a1c; font-weight: 800; text-align: end; }
 .dist-bar.lost { background: var(--pink); color: var(--bg); }
+.rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 16px; line-height: 1.4; }
+.example { display: grid; gap: 4px; justify-items: center; }
+.example p, .sheet-note { font-size: 14px; }
+.example-row { --tile: 40px; --gap: 5px; }
+.example-row .tile { font-size: 22px; border-radius: 9px; }
+.sheet-note { display: flex; align-items: center; gap: 8px; text-align: start; }
+.sheet-note .hard-badge { font-size: 0.75rem; padding: 2px 10px; flex: none; }
+.sheet.help { gap: 8px; padding-top: 22px; }
+.sheet.help h2 { font-size: 26px; }
+.sheet.help .new-puzzle { font-size: 20px; padding: 11px; }
+.credits { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 16px; }
+.sheet a { color: var(--mint); }

@@ -39,7 +39,7 @@ let revealing = false;
 
 // The end sheet opens this long after the last tile settles.
 const END_SHEET_DELAY_MS = 600;
-let view: EndView = { sheet: "pending", meaning: null, confirming: false, stats: null };
+let view: EndView = { sheet: "pending", meaning: null, confirming: false, stats: null, help: null };
 let sheetTimer: ReturnType<typeof setTimeout> | undefined;
 
 function openEndSheet(): void {
@@ -66,13 +66,13 @@ function recordEnd(): void {
 function startPuzzle(): void {
   clearTimeout(sheetTimer);
   state = randomPuzzle();
-  view = { sheet: "pending", meaning: null, confirming: false, stats: null };
+  view = { sheet: "pending", meaning: null, confirming: false, stats: null, help: null };
   persist();
   draw();
 }
 
 function dispatch(event: GameEvent): void {
-  if (revealing || view.confirming || view.stats) return;
+  if (revealing || view.confirming || view.stats || view.help) return;
   const before = state;
   state = reduce(state, event);
   if (before.status === "playing" && state.status !== "playing") recordEnd();
@@ -97,6 +97,9 @@ function onKey(key: string): void {
   else if (key === "dismiss") dismissEndSheet();
   else if (key === "stats") setStatsOpen(true);
   else if (key === "close-stats") setStatsOpen(false);
+  else if (key === "help" || key === "how") setHelp("how");
+  else if (key === "about") setHelp("about");
+  else if (key === "close-help") setHelp(null);
   else dispatch(eventFromKeyName(key));
 }
 
@@ -116,6 +119,11 @@ function setStatsOpen(open: boolean): void {
   draw();
 }
 
+function setHelp(help: EndView["help"]): void {
+  view = { ...view, help };
+  draw();
+}
+
 function abandonPuzzle(): void {
   if (abandonOutcome(state) === "lost") recordEnd();
   startPuzzle();
@@ -131,6 +139,7 @@ function draw(): void {
 }
 
 window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && view.help) return setHelp(null);
   if (e.key === "Escape" && view.stats) return setStatsOpen(false);
   if (e.key === "Escape" && view.confirming) return setConfirming(false);
   if (e.key === "Escape" && view.sheet === "open") return dismissEndSheet();
@@ -140,6 +149,11 @@ window.addEventListener("keydown", (e) => {
   dispatch(event);
 });
 
+// The how-to-play sheet opens by itself on the first visit only.
+if (!store.seenHowToPlay) {
+  view = { ...view, help: "how" };
+  store = { ...store, seenHowToPlay: true };
+}
 persist();
 // A restored Puzzle that had already ended shows its sheet at once.
 if (state.status === "playing") draw();

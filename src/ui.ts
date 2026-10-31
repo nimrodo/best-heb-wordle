@@ -23,6 +23,8 @@ export type EndView = {
   meaning: string | null;
   confirming: boolean;
   stats: Stats | null;
+  // The how-to-play sheet or the about sheet reached from it, or null while both are closed.
+  help: "how" | "about" | null;
 };
 
 // Reveal timing. Tiles pop one after another (index 0 is the rightmost tile in RTL),
@@ -156,6 +158,56 @@ function statsSheet(stats: Stats): string {
 const escapeHtml = (text: string) =>
   text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
+const SOURCE_URL = "https://github.com/nimrodo/best-heb-wordle";
+
+// Example words are stored in normal form like every other letter; tile() restores the sofit.
+const EXAMPLES: { word: string; index: number; mark: Mark; text: string }[] = [
+  { word: "ספרימ", index: 0, mark: "correct", text: "האות ס במילה, ובמקום הנכון." },
+  { word: "ילדימ", index: 1, mark: "present", text: "האות ל במילה, אבל במקום אחר." },
+  { word: "פרחימ", index: 2, mark: "absent", text: "האות ח לא במילה." },
+];
+
+function exampleRow({ word, index, mark }: (typeof EXAMPLES)[number]): string {
+  const marks: Mark[] = [];
+  marks[index] = mark;
+  const tiles = [...word].map((letter, i) => tile(letter, i, { word, marks }));
+  return `<div class="row example-row">${tiles.join("")}</div>`;
+}
+
+function howToPlaySheet(): string {
+  return `
+    <div class="backdrop" data-key="close-help"></div>
+    <section class="sheet help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="sheet-close" data-key="close-help" aria-label="סגירה">✕</button>
+      <h2 id="help-title">איך משחקים</h2>
+      <ul class="rules">
+        <li>לנחש את המילה הנסתרת בשישה ניחושים.</li>
+        <li>כל ניחוש הוא מילה אמיתית בת חמש אותיות.</li>
+        <li>אחרי כל ניחוש, האריחים מראים כמה קרוב הוא.</li>
+      </ul>
+      ${EXAMPLES.map((e) => `<div class="example">${exampleRow(e)}<p>${e.text}</p></div>`).join("")}
+      <p class="sheet-note"><span class="hard-badge">מילה קשה</span> מילה נדירה יותר, והיא מסומנת מעל הלוח.</p>
+      <button class="new-puzzle" data-key="close-help">הבנתי, מתחילים</button>
+      <button class="link" data-key="about">אודות</button>
+    </section>`;
+}
+
+function aboutSheet(): string {
+  return `
+    <div class="backdrop" data-key="close-help"></div>
+    <section class="sheet about" role="dialog" aria-modal="true" aria-labelledby="about-title">
+      <button class="sheet-close" data-key="close-help" aria-label="סגירה">✕</button>
+      <h2 id="about-title">אודות</h2>
+      <p class="sheet-sub">קוד המקור פתוח ברישיון AGPL-3.0:<br><a href="${SOURCE_URL}" target="_blank" rel="noopener">github.com/nimrodo/best-heb-wordle</a></p>
+      <ul class="credits">
+        <li>רשימת המילים: Hspell</li>
+        <li>שכיחות המילים: OpenSubtitles (CC BY-SA)</li>
+        <li>הפירושים: ויקימילון העברי (CC BY-SA)</li>
+      </ul>
+      <button class="secondary" data-key="how">חזרה להסבר</button>
+    </section>`;
+}
+
 const MEANING_CREDIT = "מקור: ויקימילון";
 
 function endSheet(state: GameState, meaning: string | null): string {
@@ -211,18 +263,19 @@ export function render(
 ): void {
   const spent = state.guesses.length - (revealing ? 1 : 0);
   root.innerHTML = `
-    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1><div class="header-end"><button class="icon" data-key="stats" aria-label="סטטיסטיקה"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="17" rx="1"/><rect x="17" y="9" width="4" height="12" rx="1"/></svg></button>${state.status === "playing" ? '<button class="header-new" data-key="new">חידה חדשה</button>' : ""}</div></header>
+    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1><div class="header-end"><button class="icon" data-key="help" aria-label="איך משחקים"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a2.9 2.9 0 1 1 4.2 2.6c-.9.5-1.4 1-1.4 2"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg></button><button class="icon" data-key="stats" aria-label="סטטיסטיקה"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="17" rx="1"/><rect x="17" y="9" width="4" height="12" rx="1"/></svg></button>${state.status === "playing" ? '<button class="header-new" data-key="new">חידה חדשה</button>' : ""}</div></header>
     <div class="hard-slot">${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}</div>
     <div class="board">${board(state, revealing)}</div>
     ${view.sheet === "dismissed" ? '<button class="new-puzzle bar" data-key="new">חידה חדשה</button>' : `<div class="keyboard">${keyboard(state)}</div>`}
-    ${view.sheet === "open" && !view.stats ? endSheet(state, view.meaning) : ""}
+    ${view.sheet === "open" && !view.stats && !view.help ? endSheet(state, view.meaning) : ""}
     ${view.confirming ? abandonDialog() : ""}
-    ${view.stats ? statsSheet(view.stats) : ""}`;
+    ${view.stats ? statsSheet(view.stats) : ""}
+    ${view.help === "how" ? howToPlaySheet() : view.help === "about" ? aboutSheet() : ""}`;
   showToast(state.toast);
   announceResult(announcement(state));
   if (revealing) startReveal(root);
   // The safe choice gets focus in the abandon question; the end sheet focuses its new-Puzzle button.
-  root.querySelector<HTMLElement>(view.confirming ? ".sheet .secondary" : view.stats ? ".sheet .sheet-close" : ".sheet .new-puzzle")?.focus();
+  root.querySelector<HTMLElement>(view.confirming ? ".sheet .secondary" : view.stats ? ".sheet .sheet-close" : view.help ? ".sheet .new-puzzle, .sheet .secondary" : ".sheet .new-puzzle")?.focus();
   root.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
       handlers.onKey(button.dataset.key!);
