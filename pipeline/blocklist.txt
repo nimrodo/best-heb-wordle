@@ -1,0 +1,42 @@
+# Proper nouns and vulgar words that must never be Solutions.
+# One word per line; final letters may be written either way. Hand-edited.
+# Seeded from a skim of the Common words (1,000+ hits); the Hard words are
+# not yet skimmed, so extend this list as names and slang turn up.
+
+# Proper nouns
+אברהם
+אהרון
+אוסקר
+אלברט
+אריקה
+ארתור
+בארני
+ברברה
+ברונו
+ברלין
+דייגו
+דניאל
+הולמס
+היטלר
+הרולד
+ישראל
+מלאני
+מליסה
+מריסה
+מנהטן
+סיאטל
+סידני
+שיקגו
+שירלי
+שרלוק
+שלדון
+
+# Vulgar or offensive
+הכושי
+הממזר
+הדפוק
+דפקתי
+לדפוק
+לחרבן
+מהתחת
+פורנו

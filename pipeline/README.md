@@ -44,4 +44,33 @@ uv run pytest        # fixtures only, no downloads needed
 uv run ruff check . && uv run ruff format .
 ```
 
-Tests drive `build_guesses`, the single top-level build function.
+Tests drive `build_guesses` and `build_solutions`, the top-level build functions.
+
+## Solutions (`public/solutions.json`)
+
+A JSON array of `{"word": ..., "hard": bool}`, sorted by word. Candidates are
+5-letter Hspell forms (the Academy spelling; corpus-only variants are never
+Solutions). A candidate is kept if:
+
+1. Its OpenSubtitles count (summed over final-letter forms) is 100 or more:
+   1,000+ is a Common word, 100-999 a Hard word, under 100 is dropped. Inflected
+   forms count on their own.
+2. It is not in `blocklist.txt` (proper nouns, vulgar words; hand-edited).
+3. No vav/yod spelling variant of a *different length* has 100+ hits, so the
+   player is never misled when counting tiles. Those words stay valid Guesses.
+4. DictaBERT-joint's prefix head does not split it (Prefix-attached forms).
+   The model, pinned to a revision, loads with `trust_remote_code`, so it
+   downloads and runs Python from the model repo (about 715 MB). It runs only
+   on candidates that survive 1-3. It over-flags by design.
+
+```sh
+uv sync --extra detector
+uv run wordlists-solutions \
+  --dic path/to/he_IL.dic --aff path/to/he_IL.aff \
+  --corpus path/to/he_full.txt --blocklist blocklist.txt \
+  --out ../public/solutions.json
+```
+
+The report printed at the end gives the Common and Hard pool sizes. Before the
+detector runs, the pools are 2,080 Common and 8,480 Hard words.
+

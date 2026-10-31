@@ -8,6 +8,14 @@ dependencies = []
 
 [project.scripts]
 wordlists = "wordlists:main"
+wordlists-solutions = "wordlists.solutions:main"
+
+[project.optional-dependencies]
+detector = [
+    "huggingface-hub>=2.4.0",
+    "torch>=2.15.0",
+    "transformers>=5.22.1",
+]
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
