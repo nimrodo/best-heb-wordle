@@ -31,6 +31,8 @@ h1 {
 .lives i { width: 11px; height: 22px; border-radius: 4px; background: var(--mint); box-shadow: 0 0 10px var(--mint); transition: 0.3s; }
 .lives i.spent { background: #2a2750; box-shadow: none; }
 
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 .toast {
   position: fixed; top: 64px; left: 50%; translate: -50% 0; z-index: 10; padding: 10px 20px; border-radius: 14px;
   background: var(--pink); color: #fff; font-size: 20px; font-weight: 800; box-shadow: 0 0 30px var(--pink);

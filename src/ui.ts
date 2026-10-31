@@ -30,16 +30,17 @@ type Row = { word: string; marks?: readonly Mark[]; reveal?: boolean; shake?: bo
 function tile(letter: string, index: number, row: Row): string {
   const text = letter ? displayLetter(letter, index) : "";
   const mark = row.marks?.[index];
-  const a11y = `role="img" aria-label="${describe(text, mark)}"`;
+  // Empty tiles carry no information, so screen readers skip them.
+  const ariaAttrs = letter ? `role="img" aria-label="${describe(text, mark)}"` : 'aria-hidden="true"';
   const delay = reducedMotion() ? 0 : index * STEP_MS;
   if (row.reveal) {
     // The mark class is added mid-pop by startReveal; until then the tile looks like a typed one.
-    return `<div class="tile filled reveal" style="--d:${delay}ms" data-mark="${mark}" ${a11y}>${text}</div>`;
+    return `<div class="tile filled reveal" style="--d:${delay}ms" data-mark="${mark}" ${ariaAttrs}>${text}</div>`;
   }
   const state = mark ?? (letter ? "filled" : "");
   const cls = row.win ? `${state} win` : state;
   const style = row.win ? ` style="--d:${index * WIN_STEP_MS}ms"` : "";
-  return `<div class="tile ${cls}"${style} ${a11y}>${text}</div>`;
+  return `<div class="tile ${cls}"${style} ${ariaAttrs}>${text}</div>`;
 }
 
 function board(state: GameState, revealing: boolean): string {
@@ -72,8 +73,9 @@ function startReveal(root: HTMLElement): void {
   });
 }
 
-const KEY_LABEL: Record<string, string> = { enter: "Enter", backspace: "⌫" };
-const KEY_NAME: Record<string, string> = { enter: "שליחה", backspace: "מחיקה" };
+// Visible text of the special keys. Enter's text is its accessible name; the ⌫ symbol needs a spoken one.
+const KEY_LABEL: Record<string, string> = { enter: "שליחה", backspace: "⌫" };
+const KEY_NAME: Record<string, string> = { backspace: "מחיקה" };
 
 // Screen-reader names for a Mark.
 const MARK_NAME: Record<Mark, string> = { correct: "נכון", present: "במקום אחר", absent: "לא במילה" };
@@ -86,7 +88,7 @@ function describe(letter: string, mark?: Mark): string {
 function keyboard(state: GameState): string {
   return KEY_ROWS.map((row) => {
     const keys = row.map((k) => {
-      const label = KEY_NAME[k] ?? describe(k, state.keys[k]);
+      const label = KEY_NAME[k] ?? KEY_LABEL[k] ?? describe(k, state.keys[k]);
       return `<button class="key ${state.keys[k] ?? ""}" data-key="${k}" aria-label="${label}">${KEY_LABEL[k] ?? k}</button>`;
     });
     return `<div class="kb-row">${keys.join("")}</div>`;
@@ -111,6 +113,13 @@ function showToast(message: string | null): void {
   }
 }
 
+// The end-of-Puzzle result is announced through its own persistent live region; the visible
+// banner is re-rendered, so it cannot be one. Only a change of text is announced.
+function announceResult(message: string): void {
+  const region = document.getElementById("result")!;
+  if (region.textContent !== message) region.textContent = message;
+}
+
 // While a Guess is being revealed the caller passes the state from before it, with that
 // Guess's row marked as revealing: the keys, lives and end banner only catch up afterwards.
 export function render(root: HTMLElement, state: GameState, handlers: Handlers, revealing = false): void {
@@ -121,6 +130,7 @@ export function render(root: HTMLElement, state: GameState, handlers: Handlers, 
     <div class="banner">${banner(state)}${state.status === "playing" ? "" : ' <button data-key="new">משחק חדש</button>'}</div>
     <div class="keyboard">${keyboard(state)}</div>`;
   showToast(state.toast);
+  announceResult(banner(state));
   if (revealing) startReveal(root);
   root.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
