@@ -1,25 +1,93 @@
+:root {
+  --bg: #0d0b26;
+  --panel: #14113a;
+  --mint: #2dffb2;
+  --amber: #ffc531;
+  --pink: #ff4fa3;
+  --text: #efeaff;
+  --tile: min(14.5vw, 62px);
+  --gap: 7px;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body {
   margin: 0;
+  min-height: 100dvh;
+  overflow-x: hidden;
   font-family: "Rubik", sans-serif;
   text-align: center;
+  color: var(--text);
+  background: radial-gradient(120% 70% at 50% 0, #2b1768 0, var(--bg) 60%) no-repeat var(--bg);
 }
-h1 { margin: 0.5rem 0; }
-.toast { min-height: 1.5rem; font-weight: 700; }
-.board { display: grid; gap: 5px; justify-content: center; margin: 0.5rem 0; }
-.row { display: grid; grid-template-columns: repeat(5, 3.2rem); gap: 5px; }
+#app { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding-bottom: 14px; }
+
+header { width: 100%; padding: 16px 18px 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+h1 {
+  grid-column: 2; margin: 0; font-size: 30px; font-weight: 800; letter-spacing: 0.02em; color: #fff;
+  text-shadow: 0 0 8px var(--pink), 0 0 24px var(--pink);
+}
+.lives { display: flex; gap: 5px; justify-self: start; }
+.lives i { width: 11px; height: 22px; border-radius: 4px; background: var(--mint); box-shadow: 0 0 10px var(--mint); transition: 0.3s; }
+.lives i.spent { background: #2a2750; box-shadow: none; }
+
+.toast {
+  position: fixed; top: 64px; left: 50%; translate: -50% 0; z-index: 10; padding: 10px 20px; border-radius: 14px;
+  background: var(--pink); color: #fff; font-size: 20px; font-weight: 800; box-shadow: 0 0 30px var(--pink);
+  opacity: 0; pointer-events: none;
+}
+.toast.show { animation: toast 1.6s forwards; }
+@keyframes toast { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
+
+.board {
+  display: grid; gap: var(--gap); margin: 20px 0; padding: 14px; border-radius: 22px; background: var(--panel);
+  box-shadow: 0 0 0 1.5px #4d3fb8, 0 0 40px #5a3fd855 inset, 0 0 50px #5a3fd833;
+}
+.row { display: grid; grid-template-columns: repeat(5, var(--tile)); gap: var(--gap); }
 .tile {
-  height: 3.2rem; display: flex; align-items: center; justify-content: center;
-  border: 2px solid #ccc; font-size: 1.6rem; font-weight: 700;
+  height: var(--tile); display: grid; place-items: center; border-radius: 12px;
+  background: #1b1749; border: 2px solid #342d78; font-size: calc(var(--tile) * 0.6); font-weight: 800;
 }
-.tile.filled { border-color: #666; }
-.tile.correct, .key.correct { background: #4a9d4a; color: #fff; border-color: #4a9d4a; }
-.tile.present, .key.present { background: #c9a227; color: #fff; border-color: #c9a227; }
-.tile.absent, .key.absent { background: #777; color: #fff; border-color: #777; }
-.banner { min-height: 2.5rem; margin: 0.5rem 0; font-weight: 700; }
-.keyboard { display: grid; gap: 6px; padding: 0 4px; }
-.kb-row { display: flex; justify-content: center; gap: 4px; }
+.tile.filled { border-color: #8f7dff; box-shadow: 0 0 14px #8f7dff88; }
+
+/* Three states that differ by shape as well as colour: solid, hollow, dim with a border. */
+.tile.correct { background: var(--mint); border-color: var(--mint); color: #012a1c; box-shadow: 0 0 22px #2dffb299; }
+.tile.present { background: transparent; border-color: var(--amber); color: var(--amber); box-shadow: 0 0 16px #ffc53166, inset 0 0 14px #ffc53155; }
+.tile.absent { background: #120f33; border-color: #3a3485; color: #8a84c8; }
+
+.tile.reveal { animation: pop 0.5s var(--d) both; }
+@keyframes pop {
+  0% { scale: 1; } 35% { scale: 1.28; translate: 0 -8px; } 70% { scale: 0.94; } 100% { scale: 1; }
+}
+.tile.win { animation: bounce 0.6s var(--d) both; }
+@keyframes bounce {
+  0%, 100% { translate: 0 0; } 30% { translate: 0 -14px; } 55% { translate: 0 0; } 75% { translate: 0 -6px; }
+}
+.row.shake { animation: shake 0.4s; }
+@keyframes shake { 20%, 60% { translate: -7px 0; } 40%, 80% { translate: 7px 0; } }
+
+.banner { min-height: 2.5rem; margin: 0.5rem 0; font-weight: 800; }
+.banner button {
+  font: inherit; font-weight: 800; padding: 6px 16px; border-radius: 99px; background: var(--pink); color: #fff;
+  box-shadow: 0 0 18px var(--pink);
+}
+
+button { color: inherit; border: 0; cursor: pointer; }
+.keyboard { display: grid; gap: 7px; width: min(100%, 460px); padding: 0 6px; margin-top: auto; }
+.kb-row { display: flex; justify-content: center; gap: 5px; }
 .key {
-  font: inherit; font-weight: 700; min-width: 2rem; height: 3rem; padding: 0 0.5rem;
-  border: 0; border-radius: 4px; background: #ddd; cursor: pointer; flex: 1; max-width: 3.4rem;
+  flex: 1 1 0; min-width: 0; height: 56px; padding: 0; font: inherit; font-size: 22px; font-weight: 600;
+  border-radius: 14px; background: #231e5c; box-shadow: 0 3px 0 #0b0924;
 }
-.key[data-key="enter"], .key[data-key="backspace"] { max-width: 4.5rem; flex: 1.5; font-size: 0.8rem; }
+.key:active { translate: 0 2px; box-shadow: 0 1px 0 #0b0924; }
+.key[data-key="enter"], .key[data-key="backspace"] { flex: 1.6 1 0; font-size: 15px; }
+/* Keys mirror tiles: present is hollow, not solid, so no corner marks are needed. */
+.key.correct { background: var(--mint); color: #012a1c; box-shadow: 0 3px 0 #0a6e4c, 0 0 14px #2dffb255; }
+.key.present { background: transparent; color: var(--amber); box-shadow: inset 0 0 0 2px var(--amber), 0 0 12px #ffc53155; }
+.key.absent { background: #15123a; color: #8a84c8; box-shadow: inset 0 0 0 1.5px #3a3485; }
+
+/* Reduced motion: a short cross-fade in place of stagger, lift, shake and bounce. Glows stay. */
+@media (prefers-reduced-motion: reduce) {
+  .tile.reveal { animation: fade 0.15s both; }
+  .tile.win, .row.shake { animation: none; }
+  .lives i { transition: none; }
+}
+@keyframes fade { from { opacity: 0.4; } to { opacity: 1; } }
