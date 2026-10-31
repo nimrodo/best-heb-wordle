@@ -8,11 +8,17 @@ word to Common (see `solutions.is_common`).
 import argparse
 import json
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
-from wordlists.guesses import BASE_TO_FINAL
-from wordlists.solutions import COMMON_MIN_HITS, candidates
+from wordlists.guesses import BASE_TO_FINAL, corpus_counts
+from wordlists.lemmas import build_index, lemma_of
+from wordlists.solutions import (
+    COMMON_MIN_HITS,
+    DEFAULT_LEMMA_COMMONNESS,
+    candidates,
+    in_lemma_band,
+)
 
 MODEL = "nimble"
 ENDPOINT = "http://localhost:11434/v1/systemone"
@@ -51,6 +57,19 @@ def score_words(
             scores[word] = scorer(restore_final_letters(word))
             on_progress(scores)
     return scores
+
+
+def band_lemmas(
+    scores: dict[str, float], dic: str, aff: str, counts: Mapping[str, int]
+) -> list[str]:
+    """The distinct inferred lemmas of words scored inside the lemma rule's band."""
+    index = build_index(dic, aff)
+    lemmas = {
+        lemma_of(word, index, counts)
+        for word, score in scores.items()
+        if in_lemma_band(score)
+    }
+    return sorted(lemmas - {None})
 
 
 def commonness_json(scores: dict[str, float]) -> str:
@@ -93,6 +112,12 @@ def main() -> None:
         default=Path("commonness.json"),
         help="scores file; read first if it exists, so a rerun resumes",
     )
+    parser.add_argument(
+        "--lemma-out",
+        type=Path,
+        default=DEFAULT_LEMMA_COMMONNESS,
+        help="lemma scores file (same resuming behaviour as --out)",
+    )
     args = parser.parse_args()
     read = lambda path: path.read_text(encoding="utf-8")
     words = candidate_hard_words(
@@ -104,12 +129,33 @@ def main() -> None:
     )
     existing = json.loads(read(args.out)) if args.out.exists() else {}
 
-    def save(scores: dict[str, float]) -> None:
-        args.out.write_text(commonness_json(scores) + "\n", encoding="utf-8")
+    def saver(path: Path) -> Callable[[dict[str, float]], None]:
+        return lambda scores: path.write_text(
+            commonness_json(scores) + "\n", encoding="utf-8"
+        )
 
-    def progress(scores: dict[str, float]) -> None:
-        if len(scores) % SAVE_EVERY == 0:
-            save(scores)
-            print(f"{len(scores)}/{len(words)}", flush=True)
+    def progress(save: Callable, total: int) -> Callable:
+        def report(scores: dict[str, float]) -> None:
+            if len(scores) % SAVE_EVERY == 0:
+                save(scores)
+                print(f"{len(scores)}/{total}", flush=True)
 
-    save(score_words(words, existing, ask_nimble, progress))
+        return report
+
+    save_words = saver(args.out)
+    scores = score_words(words, existing, ask_nimble, progress(save_words, len(words)))
+    save_words(scores)
+
+    # The lemma rule needs the lemmas of band words scored too.
+    lemmas = band_lemmas(
+        scores, read(args.dic), read(args.aff), corpus_counts(read(args.corpus))
+    )
+    existing_lemmas = (
+        json.loads(read(args.lemma_out)) if args.lemma_out.exists() else {}
+    )
+    save_lemmas = saver(args.lemma_out)
+    save_lemmas(
+        score_words(
+            lemmas, existing_lemmas, ask_nimble, progress(save_lemmas, len(lemmas))
+        )
+    )

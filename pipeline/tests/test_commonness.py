@@ -1,8 +1,10 @@
 """Tests for the commonness scorer, driven by a fake scorer (no Ollama needed)."""
 
 import json
+from collections import Counter
 
 from wordlists.commonness import (
+    band_lemmas,
     candidate_hard_words,
     commonness_json,
     restore_final_letters,
@@ -62,3 +64,13 @@ def test_output_is_sorted_compact_json() -> None:
     text = commonness_json({"תפוזי": 0.5, "אבגדה": 0.25})
     assert list(json.loads(text)) == ["אבגדה", "תפוזי"]
     assert ": " not in text
+
+
+# Lemma scoring: only the lemmas of Hard words scored in the 0.70-0.75 band.
+
+
+def test_only_lemmas_of_band_words_are_scored_once_each() -> None:
+    dic = "4\nגנב\nאגנוב\nיגנבו\nאבגדה\n"
+    scores = {"אגנוב": 0.73, "יגנבו": 0.72, "אבגדה": 0.74, "גנב": 0.5}
+    counts = Counter({"גנב": 100})
+    assert band_lemmas(scores, dic, AFF, counts) == ["גנב"]

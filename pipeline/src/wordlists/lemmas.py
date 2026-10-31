@@ -1,12 +1,14 @@
-"""THROWAWAY PROTOTYPE (issue #40): lemma-family hits. Not part of the shipped package.
+"""Infer a word's lemma, since Hspell has no lemma data.
 
-Hspell's he_IL.dic has no lemma information (it lists every inflected form as its
-own entry and he_IL.aff has only PFX rules), so a "family" is inferred here from
-spelling: strip an optional future/binyan prefix letter and an optional pronoun
-suffix, drop vav/yod, and group forms by the remaining 3-consonant skeleton.
+`he_IL.dic` lists every inflected form as its own entry and `he_IL.aff` has only
+prefix rules, so a family of forms is inferred from spelling: strip an optional
+future/binyan prefix letter and an optional pronoun suffix, drop vav/yod, and
+group forms by the remaining 3-consonant skeleton. It is crude: it can pick a
+wrong lemma, or none (see the issue #40 report in `prototype/`).
 """
 
 from collections import defaultdict
+from collections.abc import Mapping
 
 from wordlists.guesses import HEBREW_WORD, normalise
 
@@ -63,3 +65,18 @@ def family(word: str, by_skel: dict[str, set[str]]) -> tuple[set[str], str | Non
         return set(), None
     key = max(keys, key=lambda k: len(by_skel[k]))
     return by_skel[key], key
+
+
+def lemma_of(
+    word: str, by_skel: dict[str, set[str]], counts: Mapping[str, int]
+) -> str | None:
+    """The bare root if Hspell lists it (past 3sg, e.g. גנב), else the most
+    frequent other form of the family. Forms starting with מ are skipped: they
+    are mostly nouns (מגניב), not the verb's base form."""
+    forms, key = family(word, by_skel)
+    if key is None:
+        return None
+    if key in forms and counts.get(key, 0) > 0:
+        return key
+    others = [f for f in forms if f != word and not f.startswith("מ")]
+    return max(others, key=lambda f: counts.get(f, 0), default=None)
