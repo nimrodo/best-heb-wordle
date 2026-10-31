@@ -42,3 +42,25 @@
 פורנו
 הימלר
 בודרו
+
+# Prefix-attached forms the dictionary rules and the model both missed
+בגללה
+בגללו
+בגללי
+בגללכ
+בדרומ
+לבדנו
+לפניו
+למעלה
+למרות
+לעומת
+לשעבר
+
+# More proper nouns and offensive words found while skimming Common words
+הוואי
+הולנד
+הילרי
+מדונה
+בודהה
+מרינה
+כושימ

@@ -58,10 +58,14 @@ Solutions). A candidate is kept if:
 2. It is not in `blocklist.txt` (proper nouns, vulgar words; hand-edited).
 3. No vav/yod spelling variant of a *different length* has 100+ hits, so the
    player is never misled when counting tiles. Those words stay valid Guesses.
-4. DictaBERT-joint's prefix head does not split it (Prefix-attached forms).
-   The model, pinned to a revision, loads with `trust_remote_code`, so it
-   downloads and runs Python from the model repo (about 715 MB). It runs only
-   on candidates that survive 1-3. It over-flags by design.
+4. It is not Prefix-attached by Hspell's own rules: a form built by a prefix
+   rule is dropped unless Hspell also lists it as a word in its own right (a
+   dual reading). The definite article is stricter: ה plus any known 4-letter
+   word is dropped, rule or not.
+5. DictaBERT-joint's prefix head does not split it. The model, pinned to a
+   revision, loads with `trust_remote_code`, so it downloads and runs Python
+   from the model repo (about 715 MB). It runs only on candidates that survive
+   1-4, and it over-flags by design but still misses some.
 
 ```sh
 uv sync --extra detector
@@ -76,9 +80,7 @@ uv run wordlists-solutions \
 is fixed.
 
 The report printed at the end gives the Common and Hard pool sizes. The last
-build gave 2,087 Common and 3,752 Hard words (5,839 in all) at the 500 cut-off
-(1,230 and 4,609 at the spec's original 1,000); before the detector ran, the
-pools were 2,080 and 8,480 at 1,000. The detector module has no tests
+build gave 1,749 Common and 3,347 Hard words (5,096 in all) at the 500 cut-off. The detector module has no tests
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
 

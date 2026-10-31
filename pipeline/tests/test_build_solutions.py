@@ -125,8 +125,30 @@ def test_prefix_attached_form_is_excluded() -> None:
     assert build(["ביתי/a"], ["לביתי 5000"], prefix_attached=["לביתי"]) == []
 
 
-def test_prefix_expanded_form_not_flagged_is_kept() -> None:
-    assert words(build(["ביתי/a"], ["לביתי 5000"])) == ["לביתי"]
+def test_form_built_by_a_dictionary_prefix_rule_is_excluded() -> None:
+    # The detector flags nothing, but Hspell itself derives לביתי as ל + ביתי.
+    assert build(["ביתי/a"], ["לביתי 5000"]) == []
+
+
+def test_prefix_form_that_is_also_a_bare_stem_is_kept() -> None:
+    # Dual reading: Hspell lists לביתי as a word in its own right.
+    corpus = ["לביתי 5000"]
+    assert words(build(["ביתי/a", "לביתי"], corpus)) == ["לביתי"]
+
+
+def test_needaffix_stem_is_not_a_bare_stem() -> None:
+    # j marks a stem that is valid only with a prefix, so it cannot rescue לחנות.
+    assert build(["חנות/aj", "לחנות/j"], ["לחנות 5000"]) == []
+
+
+def test_definite_article_form_is_excluded_without_a_dictionary_rule() -> None:
+    # No ה rule in the fixture: ה + a known 4-letter word is still out.
+    corpus = ["הילדה 5000", "ילדה 5000"]
+    assert words(build(["הילדה", "ילדה"], corpus)) == []
+
+
+def test_ha_initial_word_whose_rest_is_not_a_word_is_kept() -> None:
+    assert words(build(["הצלחה"], ["הצלחה 5000"])) == ["הצלחה"]
 
 
 def test_detector_only_sees_candidates_that_clear_the_cutoff() -> None:

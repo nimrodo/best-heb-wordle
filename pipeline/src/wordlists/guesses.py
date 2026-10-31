@@ -45,15 +45,22 @@ def _parse_prefix_rules(
 
 def expand_forms(dic: str, aff: str) -> set[str]:
     """All Hspell forms of length 4-6 (the lengths a 5-letter Guess can come from)."""
+    bare, prefixed = split_forms(dic, aff)
+    return bare | prefixed
+
+
+def split_forms(dic: str, aff: str) -> tuple[set[str], set[str]]:
+    """Hspell forms of length 4-6 as (listed as words, built by a prefix rule)."""
     need_affix, rules = _parse_prefix_rules(aff)
-    forms: set[str] = set()
+    bare: set[str] = set()
+    prefixed: set[str] = set()
     for line in dic.splitlines()[1:]:  # first line is the entry count
         stem, _, flags = line.partition("/")
         if not HEBREW_WORD.fullmatch(stem):
             continue
         stem = normalise(stem)
         if need_affix not in flags and len(stem) in SOURCE_LENGTHS:
-            forms.add(stem)
+            bare.add(stem)
         for flag in flags:
             for prefix, condition in rules.get(flag, ()):
                 if (
@@ -61,8 +68,8 @@ def expand_forms(dic: str, aff: str) -> set[str]:
                     and HEBREW_WORD.fullmatch(prefix)
                     and condition.match(stem)
                 ):
-                    forms.add(prefix + stem)
-    return forms
+                    prefixed.add(prefix + stem)
+    return bare, prefixed
 
 
 def corpus_counts(corpus: str) -> Counter[str]:

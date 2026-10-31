@@ -2,7 +2,8 @@
 
 Candidates are 5-letter forms in Hspell (the Academy spelling), so spelling
 variants that only Guesses accept never appear. A candidate must clear the
-frequency cut-off, not be blocklisted, not be a Prefix-attached form, and not
+frequency cut-off, not be blocklisted, not be a Prefix-attached form (by the
+dictionary's prefix rules, then by the model), and not
 have a common alternative spelling of a different length.
 """
 
@@ -16,8 +17,8 @@ from wordlists.guesses import (
     VARIANT_MIN_HITS,
     WORD_LENGTH,
     corpus_counts,
-    expand_forms,
     normalise,
+    split_forms,
     variants,
 )
 
@@ -51,6 +52,21 @@ def _has_misleading_variant(form: str, counts: dict[str, int]) -> bool:
     )
 
 
+DEFINITE_ARTICLE = "ה"
+
+
+def _built_by_prefix(form: str, bare: set[str], prefixed: set[str]) -> bool:
+    """Prefix-attached by the dictionary's own rules, before any model is asked.
+
+    A form Hspell also lists as a word in its own right (a dual reading) is kept.
+    The definite article is stricter: ה plus any known word is out, even where
+    Hspell has no rule for it.
+    """
+    if form[0] == DEFINITE_ARTICLE and form[1:] in bare:
+        return True
+    return form in prefixed and form not in bare
+
+
 def build_solutions(
     dic: str,
     aff: str,
@@ -65,13 +81,15 @@ def build_solutions(
     that are Prefix-attached forms. It is slow in production, so it runs last.
     """
     counts = corpus_counts(corpus)
+    bare, prefixed = split_forms(dic, aff)
     blocked = _parse_blocklist(blocklist)
     candidates = sorted(
         form
-        for form in expand_forms(dic, aff)
+        for form in bare | prefixed
         if len(form) == WORD_LENGTH
         and counts[form] >= SOLUTION_MIN_HITS
         and form not in blocked
+        and not _built_by_prefix(form, bare, prefixed)
         and not _has_misleading_variant(form, counts)
     )
     attached = detect_prefix_attached(candidates)
