@@ -9,6 +9,9 @@ export type Guess = { word: string; marks: Mark[] };
 export type GameState = {
   readonly solution: string;
   readonly words: ReadonlySet<string>;
+  // True while `words` is only a partial list (the full Guess list is still downloading).
+  readonly loading: boolean;
+  readonly hard: boolean;
   readonly guesses: readonly Guess[];
   readonly current: string;
   readonly keys: Readonly<Record<string, Mark>>;
@@ -23,6 +26,7 @@ export type GameEvent =
 
 export const TOAST_TOO_SHORT = "אין מספיק אותיות";
 export const TOAST_NOT_IN_LIST = "המילה לא ברשימה";
+export const TOAST_LOADING = "הרשימה עדיין נטענת";
 
 const SOFIT_TO_NORMAL: Record<string, string> = { ך: "כ", ם: "מ", ן: "נ", ף: "פ", ץ: "צ" };
 const NORMAL_TO_SOFIT = Object.fromEntries(Object.entries(SOFIT_TO_NORMAL).map(([s, n]) => [n, s]));
@@ -66,13 +70,20 @@ function mergeKeys(keys: GameState["keys"], guess: Guess): GameState["keys"] {
   return merged;
 }
 
-export function newPuzzle(solution: string, words: ReadonlySet<string>): GameState {
-  return { solution, words, guesses: [], current: "", keys: {}, toast: null, status: "playing" };
+export function newPuzzle(
+  solution: string,
+  words: ReadonlySet<string>,
+  { hard = false, loading = false } = {},
+): GameState {
+  return { solution, words, loading, hard, guesses: [], current: "", keys: {}, toast: null, status: "playing" };
 }
 
 function submit(state: GameState): GameState {
   if (state.current.length < WORD_LENGTH) return { ...state, toast: TOAST_TOO_SHORT };
-  if (!state.words.has(state.current)) return { ...state, toast: TOAST_NOT_IN_LIST };
+  if (!state.words.has(state.current)) {
+    // A partial list cannot reject a word, only ask the player to retry once it is complete.
+    return { ...state, toast: state.loading ? TOAST_LOADING : TOAST_NOT_IN_LIST };
+  }
   const guess: Guess = { word: state.current, marks: score(state.current, state.solution) };
   const guesses = [...state.guesses, guess];
   const status: Status =
