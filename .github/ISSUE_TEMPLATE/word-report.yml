@@ -1,0 +1,25 @@
+name: דיווח על מילה
+description: מילה שנראית שגויה, או שסווגה כרגילה או כקשה בטעות
+title: "דיווח על מילה: "
+body:
+  - type: input
+    id: word
+    attributes:
+      label: המילה
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: מה הבעיה?
+      options:
+        - לא מילה הוגנת (שם פרטי, מילה גסה, צורה עם אות שימוש, או מילה שגויה)
+        - סווגה כמילה רגילה אך היא קשה
+        - סווגה כמילה קשה אך היא רגילה
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: הערות
+      description: לא חובה
