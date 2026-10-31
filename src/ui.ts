@@ -104,7 +104,6 @@ function describe(letter: string, mark?: Mark): string {
 function keyboard(state: GameState): string {
   return KEY_ROWS.map((row) => {
     const keys = row.map((k) => {
-      if (k === "") return '<span class="key-gap"></span>';
       const label = KEY_NAME[k] ?? KEY_LABEL[k] ?? describe(k, state.keys[k]);
       return `<button class="key ${state.keys[k] ?? ""}" data-key="${k}" aria-label="${label}">${KEY_LABEL[k] ?? k}</button>`;
     });
