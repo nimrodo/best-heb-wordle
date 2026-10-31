@@ -106,6 +106,14 @@ export function abandonOutcome(state: GameState): "lost" | null {
   return state.status === "playing" && state.guesses.length > 0 ? "lost" : null;
 }
 
+// Her usual opening: the surprise heart fires when exactly these three Guesses have been
+// entered, in this order (stored in normal letter form, so ן is נ).
+const OPENING = ["מיוחד", "אשלגנ", "התקרב"];
+
+export function isOpeningCombo(guesses: readonly Guess[]): boolean {
+  return guesses.length === OPENING.length && guesses.every((g, i) => g.word === OPENING[i]);
+}
+
 function submit(state: GameState): GameState {
   if (state.current.length < WORD_LENGTH) return { ...state, toast: TOAST_TOO_SHORT };
   if (!state.words.has(state.current)) {

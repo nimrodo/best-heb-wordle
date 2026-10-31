@@ -97,6 +97,23 @@ button { color: inherit; border: 0; cursor: pointer; }
 }
 @keyframes fade { from { opacity: 0.4; } to { opacity: 1; } }
 
+/* A surprise heart over the whole screen. It sits outside the app root and ignores taps.
+   Its 1s lasts exactly one animation: ui.ts hides it on animationend, so no timer repeats it. */
+.heart {
+  position: fixed; inset: 0; display: none; place-items: center; pointer-events: none; z-index: 20;
+  font-size: min(90vw, 70vh); line-height: 1; color: #ff4fa3;
+  text-shadow: 0 0 24px #ff4fa3, 0 0 60px #ff4fa3cc, 0 0 120px #ff4fa388;
+}
+.heart.show { display: grid; animation: heart 1s both; }
+@keyframes heart {
+  0% { opacity: 0; scale: 0.3; } 20% { opacity: 1; scale: 1.1; } 35% { scale: 1; }
+  75% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart.show { animation: heart-fade 1s both; }
+}
+@keyframes heart-fade { 0%, 100% { opacity: 0; } 20%, 75% { opacity: 1; } }
+
 /* End sheet: a bottom sheet over a dimmed board. Sliding is dropped under reduced motion. */
 .backdrop { position: fixed; inset: 0; z-index: 20; background: #05041599; }
 .sheet {
