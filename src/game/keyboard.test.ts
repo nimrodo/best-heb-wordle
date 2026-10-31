@@ -14,9 +14,9 @@ test("row 1 is the six letters with no empty slots", () => {
   expect(KEY_ROWS[0]).toEqual([..."קראטופ"]);
 });
 
-// Enter opens row 3 and Backspace closes row 2, so both rows are letters plus one wide key.
-test("Backspace ends row 2 and Enter starts row 3", () => {
-  expect(KEY_ROWS[1]).toEqual([..."שדגכעיחל", "backspace"]);
+// Backspace opens row 2 and Enter opens row 3, so both sit on the right (first in RTL) and each row is letters plus one wide key.
+test("Backspace starts row 2 and Enter starts row 3", () => {
+  expect(KEY_ROWS[1]).toEqual(["backspace", ..."שדגכעיחל"]);
   expect(KEY_ROWS[2]).toEqual(["enter", ..."זסבהנמצת"]);
 });
 
