@@ -27,6 +27,7 @@ def build(
     commonness: dict[str, float] | None = None,
     commonness_min_prob: float | None = None,
     lemma_commonness: dict[str, float] | None = None,
+    extra_hard: str = "",
 ) -> list[Solution]:
     dic = f"{len(dic_words)}\n" + "\n".join(dic_words) + "\n"
     flagged = set(prefix_attached)
@@ -39,6 +40,7 @@ def build(
         **({} if common_min_hits is None else {"common_min_hits": common_min_hits}),
         commonness=commonness,
         lemma_commonness=lemma_commonness,
+        extra_hard=extra_hard,
         **(
             {}
             if commonness_min_prob is None
@@ -271,6 +273,29 @@ def test_blocklisted_word_is_excluded() -> None:
 def test_blocklist_ignores_comments_blank_lines_and_final_letters() -> None:
     blocklist = "# names\n\nילדים\n"
     assert build(["ילדים"], ["ילדים 500"], blocklist=blocklist) == []
+
+
+# Extra Hard words: a hand-edited list that skips the frequency cut-off.
+
+
+def test_extra_hard_word_below_the_cutoff_is_a_hard_word() -> None:
+    result = build([], [], extra_hard="אבגדה\n")
+    assert result == [Solution("אבגדה", hard=True)]
+
+
+def test_extra_hard_word_already_a_solution_keeps_its_own_flag() -> None:
+    result = build(["אבגדה"], ["אבגדה 500"], extra_hard="אבגדה\n")
+    assert result == [Solution("אבגדה", hard=False)]
+
+
+def test_extra_hard_list_ignores_comments_blank_lines_and_final_letters() -> None:
+    result = build([], [], extra_hard="# book\n\nילדים\n")
+    assert words(result) == ["ילדימ"]
+
+
+def test_extra_hard_words_are_sorted_in_with_the_rest() -> None:
+    result = build(["תפוזי"], ["תפוזי 500"], extra_hard="אבגדה\n")
+    assert words(result) == ["אבגדה", "תפוזי"]
 
 
 def test_solutions_json_is_a_valid_array_of_word_and_hard() -> None:

@@ -42,6 +42,7 @@ SOLUTION_MIN_HITS = 100
 
 DEFAULT_COMMONNESS = Path("commonness.json")
 DEFAULT_LEMMA_COMMONNESS = Path("lemma_commonness.json")
+DEFAULT_EXTRA_HARD = Path("book_hard.txt")
 
 PrefixDetector = Callable[[list[str]], set[str]]
 
@@ -54,8 +55,9 @@ class Solution:
     promoted: bool = False
 
 
-def _parse_blocklist(blocklist: str) -> set[str]:
-    lines = (line.strip() for line in blocklist.splitlines())
+def _parse_word_list(text: str) -> set[str]:
+    """One word per line; `#` comments and blank lines ignored, final letters normalised."""
+    lines = (line.strip() for line in text.splitlines())
     return {normalise(line) for line in lines if line and not line.startswith("#")}
 
 
@@ -118,7 +120,7 @@ def candidates(
     """
     counts = corpus_counts(corpus)
     bare, prefixed = split_forms(dic, aff)
-    blocked = _parse_blocklist(blocklist)
+    blocked = _parse_word_list(blocklist)
     return sorted(
         form
         for form in bare | prefixed
@@ -140,6 +142,7 @@ def build_solutions(
     commonness: dict[str, float] | None = None,
     commonness_min_prob: float = COMMONNESS_MIN_PROB,
     lemma_commonness: dict[str, float] | None = None,
+    extra_hard: str = "",
 ) -> list[Solution]:
     """Return the Solutions, sorted by word.
 
@@ -147,7 +150,9 @@ def build_solutions(
     that are Prefix-attached forms. It is slow in production, so it runs last.
     `commonness` maps a word to the model's probability that it is everyday; a
     word missing from it is judged on hits alone. `lemma_commonness` maps an
-    inferred lemma to the same probability.
+    inferred lemma to the same probability. `extra_hard` is a hand-checked word
+    list (see `book_hard.txt`): each word not already a Solution is added as a
+    Hard word, whatever its hit count, and skips the filters above.
     """
     commonness = commonness or {}
     lemma_commonness = lemma_commonness or {}
@@ -170,7 +175,13 @@ def build_solutions(
         solutions.append(
             Solution(form, hard=not common, promoted=common and not by_hits)
         )
-    return solutions
+    known = {s.word for s in solutions}
+    solutions += [
+        Solution(word, hard=True)
+        for word in _parse_word_list(extra_hard)
+        if word not in known
+    ]
+    return sorted(solutions, key=lambda s: s.word)
 
 
 def solutions_json(solutions: list[Solution]) -> str:
@@ -238,6 +249,12 @@ def main() -> None:
         help="lemma_commonness.json from wordlists-commonness; "
         f"optional if absent (default {DEFAULT_LEMMA_COMMONNESS})",
     )
+    parser.add_argument(
+        "--extra-hard",
+        type=Path,
+        default=DEFAULT_EXTRA_HARD,
+        help=f"hand-checked Hard words added as they are (default {DEFAULT_EXTRA_HARD})",
+    )
     parser.add_argument("--out", type=Path, required=True, help="output solutions.json")
     args = parser.parse_args()
     read = lambda path: path.read_text(encoding="utf-8")
@@ -258,6 +275,7 @@ def main() -> None:
         commonness,
         args.commonness_min_prob,
         lemma_commonness,
+        read(args.extra_hard) if args.extra_hard.exists() else "",
     )
     args.out.write_text(solutions_json(solutions), encoding="utf-8")
     print(pool_report(solutions))

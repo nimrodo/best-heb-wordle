@@ -67,6 +67,12 @@ Solutions). A candidate is kept if:
    from the model repo (about 715 MB). It runs only on candidates that survive
    1-4, and it over-flags by design but still misses some.
 
+6. Extra Hard words: `book_hard.txt` (`--extra-hard`, default when present) lists
+   hand-checked words, from a vocabulary book's headwords, that are too rare
+   for the cut-off. The build adds each one that is not already a Solution as a
+   Hard word, skipping rules 1-5 (they were screened against 2-4 by hand and are
+   all valid Guesses). Words already Solutions keep their own flag.
+
 ```sh
 uv sync --extra detector
 uv run wordlists-solutions \
@@ -137,7 +143,7 @@ first on a rerun, so an interrupted run resumes and scored words are not
 re-asked. Words that are no longer Hard are dropped from the file.
 
 The report printed at the end gives the Common and Hard pool sizes. The last
-build gave 2,298 Common and 2,763 Hard words (5,061 in all) at the 500 cut-off, 567 of the Common ones promoted by `nimble` or by its lemma. The detector module has no tests
+build gave 2,298 Common and 2,763 Hard words (5,061 in all) at the 500 cut-off, 567 of the Common ones promoted by `nimble` or by its lemma. `book_hard.txt` then adds 189 Hard words (2,952 Hard, 5,250 in all). The detector module has no tests
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
 
