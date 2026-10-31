@@ -15,7 +15,8 @@ export type Handlers = { onKey: (key: string) => void };
 // The end sheet: "pending" while the last tile settles, "open", then "dismissed" (the board
 // stays visible and a new-Puzzle button replaces the keyboard). The Meaning is null when the
 // Solution has none, or until definitions.json arrives.
-export type EndView = { sheet: "pending" | "open" | "dismissed"; meaning: string | null };
+// `confirming` shows the abandon-Puzzle question over a Puzzle still in progress.
+export type EndView = { sheet: "pending" | "open" | "dismissed"; meaning: string | null; confirming: boolean };
 
 // Reveal timing. Tiles pop one after another (index 0 is the rightmost tile in RTL),
 // and each tile takes its colour halfway through its own pop.
@@ -111,6 +112,17 @@ function announcement(state: GameState): string {
   return sub ? `${headline} ${sub}` : `${headline} המילה הייתה: ${solutionText(state)}`;
 }
 
+function abandonDialog(): string {
+  return `
+    <div class="backdrop" data-key="continue"></div>
+    <section class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h2 id="confirm-title">להתחיל חידה חדשה?</h2>
+      <p class="sheet-sub">החידה הנוכחית תיחשב כהפסד.</p>
+      <button class="new-puzzle" data-key="abandon">כן, חידה חדשה</button>
+      <button class="secondary" data-key="continue">להמשיך לשחק</button>
+    </section>`;
+}
+
 // Meanings are third-party text and go into innerHTML, so markup characters are escaped.
 const escapeHtml = (text: string) =>
   text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -169,15 +181,17 @@ export function render(
 ): void {
   const spent = state.guesses.length - (revealing ? 1 : 0);
   root.innerHTML = `
-    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1></header>
+    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1>${state.status === "playing" ? '<button class="header-new" data-key="new">חידה חדשה</button>' : ""}</header>
     <div class="hard-slot">${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}</div>
     <div class="board">${board(state, revealing)}</div>
     ${view.sheet === "dismissed" ? '<button class="new-puzzle bar" data-key="new">חידה חדשה</button>' : `<div class="keyboard">${keyboard(state)}</div>`}
-    ${view.sheet === "open" ? endSheet(state, view.meaning) : ""}`;
+    ${view.sheet === "open" ? endSheet(state, view.meaning) : ""}
+    ${view.confirming ? abandonDialog() : ""}`;
   showToast(state.toast);
   announceResult(announcement(state));
   if (revealing) startReveal(root);
-  root.querySelector<HTMLElement>(".sheet .new-puzzle")?.focus();
+  // The safe choice gets focus in the abandon question; the end sheet focuses its new-Puzzle button.
+  root.querySelector<HTMLElement>(view.confirming ? ".sheet .secondary" : ".sheet .new-puzzle")?.focus();
   root.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
       handlers.onKey(button.dataset.key!);

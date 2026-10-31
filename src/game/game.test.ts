@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { TOAST_LOADING, TOAST_NOT_IN_LIST, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game";
+import { TOAST_LOADING, abandonOutcome, TOAST_NOT_IN_LIST, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game";
 
 const words = new Set(["שולחנ", "מחברת", "ספרימ", "ילדימ", "שמיימ", "מקלדת"]);
 
@@ -180,5 +180,16 @@ describe("restorePuzzle", () => {
   test("six wrong Guesses restore as lost", () => {
     const six = Array(6).fill("אבגדה");
     expect(restorePuzzle({ solution: "שלומי", hard: false, guesses: six, current: "" }, words).status).toBe("lost");
+  });
+});
+
+describe("abandoning a Puzzle", () => {
+  test("with Guesses it counts as a loss", () => {
+    expect(abandonOutcome(submit(fresh(), "מחברת"))).toBe("lost");
+  });
+
+  test("with no Guesses nothing is recorded, even with a partly typed word", () => {
+    expect(abandonOutcome(fresh())).toBeNull();
+    expect(abandonOutcome(type(fresh(), "מחב"))).toBeNull();
   });
 });
