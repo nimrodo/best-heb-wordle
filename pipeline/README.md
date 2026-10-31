@@ -173,8 +173,10 @@ uv run wordlists-definitions \
   --solutions ../public/solutions.json --out ../public/definitions.json
 ```
 
-Takes a few seconds. The last build (dump of 2026-10) gave Meanings for 577 of
-5,096 Solutions (11.3%).
+Takes a few seconds. The committed file has Meanings for 632 of 5,250 Solutions
+(12.0%): 555 from the first build, plus 77 for the extra Hard words in
+`book_hard.txt`, added from a later build of the same dump without touching the
+earlier ones. A full rebuild would change a few existing Meanings.
 
 ### Licence
 
