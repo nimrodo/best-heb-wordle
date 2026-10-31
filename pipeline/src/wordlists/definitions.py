@@ -67,8 +67,10 @@ def fit_length(meaning: str) -> str | None:
         return None
     if len(meaning) <= MAX_LENGTH:
         return meaning
-    room = meaning[: MAX_LENGTH - len(ELLIPSIS) + 1]
-    head = room.rsplit(" ", 1)[0] if " " in room else room[:-1]
+    # Keep one character more than fits, so a word ending exactly where the
+    # ellipsis would start survives the cut at the last space.
+    window = meaning[: MAX_LENGTH - len(ELLIPSIS) + 1]
+    head = window.rsplit(" ", 1)[0] if " " in window else window[:-1]
     return head.rstrip(" ,;:-–") + ELLIPSIS
 
 

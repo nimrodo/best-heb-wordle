@@ -79,6 +79,13 @@ def test_long_meanings_are_cut_at_a_word_with_an_ellipsis() -> None:
     assert cut.endswith("מילה…")
 
 
+def test_long_text_without_spaces_is_still_cut_to_the_cap() -> None:
+    cut = fit_length("א" * 200)
+    assert cut is not None
+    assert len(cut) == MAX_LENGTH
+    assert cut.endswith("…")
+
+
 def test_meaning_at_exactly_the_cap_is_unchanged() -> None:
     text = "א" * MAX_LENGTH
     assert fit_length(text) == text
