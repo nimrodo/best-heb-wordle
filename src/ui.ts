@@ -231,6 +231,15 @@ function endSheet(state: GameState, meaning: string | null): string {
   );
 }
 
+// The heart sits outside the app root too, so re-renders do not cut it short.
+export function showHeart(): void {
+  const heart = document.getElementById("heart")!;
+  heart.classList.remove("show");
+  void heart.offsetWidth; // restart the animation
+  heart.classList.add("show");
+  heart.addEventListener("animationend", () => heart.classList.remove("show"), { once: true });
+}
+
 // The toast is a live region that outlives re-renders (it sits outside the app root), so
 // screen readers announce each new message instead of seeing a fresh element every time.
 function showToast(message: string | null): void {

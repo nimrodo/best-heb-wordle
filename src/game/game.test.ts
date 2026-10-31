@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { TOAST_LOADING, abandonOutcome, TOAST_NOT_IN_LIST, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game";
+import { TOAST_LOADING, abandonOutcome, isOpeningCombo, TOAST_NOT_IN_LIST, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game";
 
 const words = new Set(["שולחנ", "מחברת", "ספרימ", "ילדימ", "שמיימ", "מקלדת"]);
 
@@ -191,5 +191,20 @@ describe("abandoning a Puzzle", () => {
   test("with no Guesses nothing is recorded, even with a partly typed word", () => {
     expect(abandonOutcome(fresh())).toBeNull();
     expect(abandonOutcome(type(fresh(), "מחב"))).toBeNull();
+  });
+});
+
+describe("the opening three Guesses", () => {
+  const guesses = (...words: string[]) => words.map((word) => ({ word, marks: [] }));
+
+  test("fires for מיוחד, אשלגן, התקרב in that order", () => {
+    expect(isOpeningCombo(guesses("מיוחד", "אשלגנ", "התקרב"))).toBe(true);
+  });
+
+  test("not for a different order, a prefix, or a different Guess count", () => {
+    expect(isOpeningCombo(guesses("אשלגנ", "מיוחד", "התקרב"))).toBe(false);
+    expect(isOpeningCombo(guesses("מיוחד", "אשלגנ"))).toBe(false);
+    expect(isOpeningCombo(guesses("מיוחד", "אשלגנ", "התקרב", "שולחנ"))).toBe(false);
+    expect(isOpeningCombo(guesses("מיוחד", "אשלגנ", "שולחנ"))).toBe(false);
   });
 });

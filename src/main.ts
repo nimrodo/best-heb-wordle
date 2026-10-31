@@ -2,9 +2,9 @@ import "@fontsource/rubik/hebrew-400.css";
 import "@fontsource/rubik/hebrew-600.css";
 import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
-import { abandonOutcome, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
+import { abandonOutcome, isOpeningCombo, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
 import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
-import { render, revealDuration, type EndView, type Overlay } from "./ui";
+import { render, revealDuration, type EndView, showHeart, type Overlay } from "./ui";
 import { drawUnplayed, type SolutionEntry } from "./game/draw";
 import { loadStore, saveStore } from "./game/persistence";
 import { recordLoss, recordWin } from "./game/stats";
@@ -85,6 +85,7 @@ function dispatch(event: GameEvent): void {
     setTimeout(() => {
       revealing = false;
       draw();
+      if (isOpeningCombo(state.guesses)) showHeart();
       if (state.status !== "playing") sheetTimer = setTimeout(openEndSheet, END_SHEET_DELAY_MS);
     }, revealDuration());
   } else draw();
