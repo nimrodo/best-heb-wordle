@@ -17,3 +17,8 @@ export async function loadGuesses(): Promise<Set<string>> {
   const text = await (await fetchOk("guesses.txt")).text();
   return new Set(text.split("\n").filter((w) => w.length > 0));
 }
+
+// Meanings by Solution; fetched on the end screen only. A Solution may have none.
+export async function loadDefinitions(): Promise<Record<string, string>> {
+  return (await fetchOk("definitions.json")).json();
+}

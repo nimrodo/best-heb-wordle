@@ -4,10 +4,10 @@ import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
 import { newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
 import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
-import { render, revealDuration } from "./ui";
+import { render, revealDuration, type EndView } from "./ui";
 import { drawUnplayed, type SolutionEntry } from "./game/draw";
 import { loadStore, saveStore } from "./game/persistence";
-import { loadGuesses, loadSolutions } from "./words";
+import { loadDefinitions, loadGuesses, loadSolutions } from "./words";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
@@ -36,6 +36,34 @@ let state: GameState = store.puzzle ? restorePuzzle(store.puzzle, words, { loadi
 // Input is ignored while a submitted Guess is being revealed.
 let revealing = false;
 
+// The end sheet opens this long after the last tile settles.
+const END_SHEET_DELAY_MS = 600;
+let view: EndView = { sheet: "pending", meaning: null };
+let sheetTimer: ReturnType<typeof setTimeout> | undefined;
+
+function openEndSheet(): void {
+  view = { sheet: "open", meaning: null };
+  draw();
+  // Definitions are fetched on first need; a failed fetch just means no Meaning line.
+  const { solution } = state;
+  loadDefinitions().then(
+    (all) => {
+      if (state.solution !== solution) return;
+      view = { ...view, meaning: all[solution] ?? null };
+      draw();
+    },
+    (error) => console.error("Failed to load the Meanings", error),
+  );
+}
+
+function startPuzzle(): void {
+  clearTimeout(sheetTimer);
+  state = randomPuzzle();
+  view = { sheet: "pending", meaning: null };
+  persist();
+  draw();
+}
+
 function dispatch(event: GameEvent): void {
   if (revealing) return;
   const before = state;
@@ -44,28 +72,33 @@ function dispatch(event: GameEvent): void {
   if (state.guesses.length > before.guesses.length) {
     revealing = true;
     // Show the board and keys as they were, with only the new row animating.
-    render(root, { ...state, keys: before.keys, status: before.status }, { onKey }, true);
+    render(root, { ...state, keys: before.keys, status: before.status }, view, { onKey }, true);
     setTimeout(() => {
       revealing = false;
       draw();
+      if (state.status !== "playing") sheetTimer = setTimeout(openEndSheet, END_SHEET_DELAY_MS);
     }, revealDuration());
   } else draw();
 }
 
 function onKey(key: string): void {
   if (revealing) return;
-  if (key === "new") {
-    state = randomPuzzle();
-    persist();
-    draw();
-  } else dispatch(eventFromKeyName(key));
+  if (key === "new") startPuzzle();
+  else if (key === "dismiss") dismissEndSheet();
+  else dispatch(eventFromKeyName(key));
+}
+
+function dismissEndSheet(): void {
+  view = { ...view, sheet: "dismissed" };
+  draw();
 }
 
 function draw(): void {
-  render(root, state, { onKey });
+  render(root, state, view, { onKey });
 }
 
 window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && view.sheet === "open") return dismissEndSheet();
   const event = eventFromKeyboard(e);
   if (!event) return;
   e.preventDefault();
@@ -73,7 +106,9 @@ window.addEventListener("keydown", (e) => {
 });
 
 persist();
-draw();
+// A restored Puzzle that had already ended shows its sheet at once.
+if (state.status === "playing") draw();
+else openEndSheet();
 
 // Play starts at once; the Guess list swaps into the running Puzzle when it arrives.
 loadGuesses().then(
