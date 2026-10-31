@@ -7,6 +7,7 @@ import {
   type Mark,
 } from "./game/game";
 import { KEY_ROWS } from "./game/keyboard";
+import { reportUrl } from "./report";
 
 export type Handlers = { onKey: (key: string) => void };
 
@@ -95,9 +96,12 @@ function keyboard(state: GameState): string {
   }).join("");
 }
 
+// Visible text of the Solution, with sofit letters restored.
+const solutionText = (state: GameState) => [...state.solution].map(displayLetter).join("");
+
 function banner(state: GameState): string {
   if (state.status === "won") return "כל הכבוד!";
-  if (state.status === "lost") return `המילה הייתה: ${[...state.solution].map(displayLetter).join("")}`;
+  if (state.status === "lost") return `המילה הייתה: ${solutionText(state)}`;
   return "";
 }
 
@@ -127,7 +131,7 @@ export function render(root: HTMLElement, state: GameState, handlers: Handlers, 
   root.innerHTML = `
     <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1></header>
     <div class="board">${board(state, revealing)}</div>
-    <div class="banner">${banner(state)}${state.status === "playing" ? "" : ' <button data-key="new">משחק חדש</button>'}</div>
+    <div class="banner">${banner(state)}${state.status === "playing" ? "" : ` <button data-key="new">משחק חדש</button> <a class="report" href="${reportUrl(solutionText(state))}" target="_blank" rel="noopener">דיווח על המילה</a>`}</div>
     <div class="keyboard">${keyboard(state)}</div>`;
   showToast(state.toast);
   announceResult(banner(state));

@@ -73,6 +73,7 @@ h1 {
   font: inherit; font-weight: 800; padding: 6px 16px; border-radius: 99px; background: var(--pink); color: var(--bg);
   box-shadow: 0 0 18px var(--pink);
 }
+.banner .report { display: block; margin-top: 6px; font-size: 0.85rem; font-weight: 400; color: inherit; opacity: 0.75; }
 
 button { color: inherit; border: 0; cursor: pointer; }
 .keyboard { display: grid; gap: 7px; width: min(100%, 460px); padding: 0 6px; margin-top: auto; }
