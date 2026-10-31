@@ -29,8 +29,28 @@ A Solution that is valid but uncommon, and is marked as such for the player.
 _Avoid_: Rare word, advanced word
 
 **Common word**:
-A Solution frequent enough in everyday Hebrew that no warning is needed. The counterpart of a Hard word.
+A Solution frequent or well-known enough in everyday Hebrew that no warning is needed. The counterpart of a Hard word.
 _Avoid_: Easy word
+
+**Guess list**:
+Every word accepted as a Guess, including Prefix-attached forms and Spelling variants. Far larger than the Solution list.
+_Avoid_: Dictionary, word list
+
+**Solution list**:
+The pool Solutions are drawn from, each used once before any repeats. Contains Common words and Hard words, never Prefix-attached forms.
+_Avoid_: Answer list
+
+**Spelling variant**:
+An alternative spelling of the same word, with or without the vowel letters vav and yod (ktiv male and ktiv haser). Either spelling is accepted as a Guess, but a Solution uses only the Academy standard spelling.
+_Avoid_: Alternate spelling
+
+**Final letter (sofit)**:
+The special end-of-word form of כ מ נ פ צ. Letters are stored in their normal form and shown as final letters only in the last tile.
+_Avoid_: Sofit key, end letter
+
+**Abandon**:
+To leave a Puzzle in progress by starting a new one. With Guesses it counts as a loss; with none, nothing is recorded. Either way its Solution counts as used and no end sheet is shown.
+_Avoid_: Quit, skip, forfeit
 
 **Meaning**:
 A short Hebrew definition of a Solution, shown after the Puzzle ends. Optional: a Solution without one is still valid.
