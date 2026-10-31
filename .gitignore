@@ -157,3 +157,4 @@ vite.config.ts.timestamp-*
 .boost/
 node_modules/
 dist/
+pipeline/data/
