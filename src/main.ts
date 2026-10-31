@@ -5,11 +5,20 @@ import "./style.css";
 import { newPuzzle, reduce, type GameEvent, type GameState } from "./game/game";
 import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
 import { render, revealDuration } from "./ui";
-import { solutions, validWords } from "./words";
+import { drawSolution, type SolutionEntry } from "./game/draw";
+import { loadGuesses, loadSolutions } from "./words";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
 
-const randomPuzzle = () => newPuzzle(solutions[Math.floor(Math.random() * solutions.length)], validWords);
+const solutions = await loadSolutions();
+// Until the full Guess list arrives, only Solutions are known words.
+let words: ReadonlySet<string> = new Set(solutions.map((s: SolutionEntry) => s.word));
+let loading = true;
+
+const randomPuzzle = () => {
+  const { word, hard } = drawSolution(solutions, Math.random);
+  return newPuzzle(word, words, { hard, loading });
+};
 
 let state: GameState = randomPuzzle();
 // Input is ignored while a submitted Guess is being revealed.
@@ -50,3 +59,14 @@ window.addEventListener("keydown", (e) => {
 });
 
 draw();
+
+// Play starts at once; the Guess list swaps into the running Puzzle when it arrives.
+loadGuesses().then(
+  (guesses) => {
+    words = guesses;
+    loading = false;
+    state = { ...state, words, loading };
+    if (!revealing) draw();
+  },
+  (error) => console.error("Failed to load the Guess list", error),
+);

@@ -130,6 +130,7 @@ export function render(root: HTMLElement, state: GameState, handlers: Handlers, 
   const spent = state.guesses.length - (revealing ? 1 : 0);
   root.innerHTML = `
     <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1></header>
+    <div class="hard-slot">${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}</div>
     <div class="board">${board(state, revealing)}</div>
     <div class="banner">${banner(state)}${state.status === "playing" ? "" : ` <button data-key="new">משחק חדש</button> <a class="report" href="${reportUrl(solutionText(state))}" target="_blank" rel="noopener">דיווח על המילה</a>`}</div>
     <div class="keyboard">${keyboard(state)}</div>`;

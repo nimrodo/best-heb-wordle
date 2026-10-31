@@ -1,10 +1,19 @@
-import { normalise } from "./game/game";
+import type { SolutionEntry } from "./game/draw";
 
-// Placeholder lists until the real pipeline output is wired in.
-const SOLUTIONS = ["שולחן", "מחברת", "מקלדת", "ספרים", "ילדים", "שמיים", "מדינה", "תמונה", "ארצות", "פרחים", "מסלול"];
-const EXTRA_GUESSES = ["מחשבה", "אהבתי", "חופשה"];
+const url = (file: string) => `${import.meta.env.BASE_URL}${file}`;
 
-const fold = (word: string) => [...word].map((l) => normalise(l) ?? l).join("");
+async function fetchOk(file: string): Promise<Response> {
+  const response = await fetch(url(file));
+  if (!response.ok) throw new Error(`${file}: ${response.status}`);
+  return response;
+}
 
-export const solutions = SOLUTIONS.map(fold);
-export const validWords: ReadonlySet<string> = new Set([...solutions, ...EXTRA_GUESSES.map(fold)]);
+export async function loadSolutions(): Promise<SolutionEntry[]> {
+  return (await fetchOk("solutions.json")).json();
+}
+
+// One word per line, already in normal letter form (no sofit).
+export async function loadGuesses(): Promise<Set<string>> {
+  const text = await (await fetchOk("guesses.txt")).text();
+  return new Set(text.split("\n").filter((w) => w.length > 0));
+}

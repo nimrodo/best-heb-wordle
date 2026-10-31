@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { newPuzzle, reduce, type GameEvent, type GameState } from "./game";
+import { TOAST_LOADING, TOAST_NOT_IN_LIST, newPuzzle, reduce, type GameEvent, type GameState } from "./game";
 
 const words = new Set(["שולחנ", "מחברת", "ספרימ", "ילדימ", "שמיימ", "מקלדת"]);
 
@@ -16,6 +16,31 @@ function submit(state: GameState, word: string): GameState {
 }
 
 const fresh = (solution = "שולחנ") => newPuzzle(solution, words);
+
+describe("Puzzle setup", () => {
+  test("a Puzzle is not Hard unless said so", () => {
+    expect(fresh().hard).toBe(false);
+    expect(newPuzzle("שולחנ", words, { hard: true }).hard).toBe(true);
+  });
+});
+
+describe("while the Guess list is still loading", () => {
+  const loading = () => newPuzzle("שולחנ", words, { loading: true });
+
+  test("an unknown word gets a loading toast, not 'not in list'", () => {
+    const state = submit(loading(), "קקקקק");
+    expect(state.toast).toBe(TOAST_LOADING);
+    expect(state.guesses).toHaveLength(0);
+  });
+
+  test("a word already known is accepted", () => {
+    expect(submit(loading(), "מקלדת").guesses).toHaveLength(1);
+  });
+
+  test("once loaded, an unknown word is simply not in the list", () => {
+    expect(submit(fresh(), "קקקקק").toast).toBe(TOAST_NOT_IN_LIST);
+  });
+});
 
 describe("scoring", () => {
   test("marks correct, present and absent letters", () => {
