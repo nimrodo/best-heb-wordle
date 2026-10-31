@@ -2,7 +2,7 @@ import "@fontsource/rubik/hebrew-400.css";
 import "@fontsource/rubik/hebrew-600.css";
 import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
-import { newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
+import { abandonOutcome, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
 import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
 import { render, revealDuration, type EndView } from "./ui";
 import { drawUnplayed, type SolutionEntry } from "./game/draw";
@@ -38,11 +38,11 @@ let revealing = false;
 
 // The end sheet opens this long after the last tile settles.
 const END_SHEET_DELAY_MS = 600;
-let view: EndView = { sheet: "pending", meaning: null };
+let view: EndView = { sheet: "pending", meaning: null, confirming: false };
 let sheetTimer: ReturnType<typeof setTimeout> | undefined;
 
 function openEndSheet(): void {
-  view = { sheet: "open", meaning: null };
+  view = { ...view, sheet: "open", meaning: null };
   draw();
   // Definitions are fetched on first need; a failed fetch just means no Meaning line.
   const { solution } = state;
@@ -59,13 +59,13 @@ function openEndSheet(): void {
 function startPuzzle(): void {
   clearTimeout(sheetTimer);
   state = randomPuzzle();
-  view = { sheet: "pending", meaning: null };
+  view = { sheet: "pending", meaning: null, confirming: false };
   persist();
   draw();
 }
 
 function dispatch(event: GameEvent): void {
-  if (revealing) return;
+  if (revealing || view.confirming) return;
   const before = state;
   state = reduce(state, event);
   persist();
@@ -83,9 +83,28 @@ function dispatch(event: GameEvent): void {
 
 function onKey(key: string): void {
   if (revealing) return;
-  if (key === "new") startPuzzle();
+  if (key === "new") askBeforeNewPuzzle();
+  else if (key === "abandon") abandonPuzzle();
+  else if (key === "continue") setConfirming(false);
   else if (key === "dismiss") dismissEndSheet();
   else dispatch(eventFromKeyName(key));
+}
+
+// A Puzzle in progress is only given up after the player confirms.
+function askBeforeNewPuzzle(): void {
+  if (state.status === "playing") setConfirming(true);
+  else startPuzzle();
+}
+
+function setConfirming(confirming: boolean): void {
+  view = { ...view, confirming };
+  draw();
+}
+
+function abandonPuzzle(): void {
+  // A loss, when `abandonOutcome` says so, is what the stats ticket (#29) will record here.
+  abandonOutcome(state);
+  startPuzzle();
 }
 
 function dismissEndSheet(): void {
@@ -98,6 +117,7 @@ function draw(): void {
 }
 
 window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && view.confirming) return setConfirming(false);
   if (e.key === "Escape" && view.sheet === "open") return dismissEndSheet();
   const event = eventFromKeyboard(e);
   if (!event) return;
