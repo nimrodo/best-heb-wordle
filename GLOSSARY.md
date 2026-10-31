@@ -27,3 +27,15 @@ _Avoid_: Prefixed word
 **Hard word**:
 A Solution that is valid but uncommon, and is marked as such for the player.
 _Avoid_: Rare word, advanced word
+
+**Common word**:
+A Solution frequent enough in everyday Hebrew that no warning is needed. The counterpart of a Hard word.
+_Avoid_: Easy word
+
+**Meaning**:
+A short Hebrew definition of a Solution, shown after the Puzzle ends. Optional: a Solution without one is still valid.
+_Avoid_: Definition, hint
+
+**Streak**:
+The number of Puzzles won in a row. A loss, including an abandoned Puzzle, resets it to zero. Not tied to days, since there is no daily Puzzle.
+_Avoid_: Daily streak
