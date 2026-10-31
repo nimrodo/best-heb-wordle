@@ -1,6 +1,8 @@
 import { expect, test } from "vitest";
 import guessesText from "../public/guesses.txt?raw";
+import definitionsText from "../public/definitions.json?raw";
 import solutionsText from "../public/solutions.json?raw";
+import extraHardText from "../pipeline/book_hard.txt?raw";
 import type { SolutionEntry } from "./game/draw";
 import { WORD_LENGTH, normalise } from "./game/game";
 
@@ -14,6 +16,18 @@ test("every Solution is in normal letter form and is also a valid Guess", () => 
     expect(isNormalForm(word), word).toBe(true);
     expect(guesses.has(word), word).toBe(true);
   }
+});
+
+// definitions.json is one line, so a stray entry never shows up in a diff.
+test("every Meaning belongs to a Solution", () => {
+  const known = new Set(solutions.map((s) => s.word));
+  for (const word of Object.keys(JSON.parse(definitionsText))) expect(known.has(word), word).toBe(true);
+});
+
+test("every hand-checked extra Hard word is a Solution", () => {
+  const known = new Set(solutions.map((s) => s.word));
+  const extras = extraHardText.split("\n").filter((l) => l && !l.startsWith("#"));
+  for (const word of extras) expect(known.has(word), word).toBe(true);
 });
 
 test("the pool has both Common and Hard words", () => {

@@ -23,8 +23,8 @@ All lists are static files in `public/`, built offline by the [`pipeline/`](pipe
 
 | File | What it holds | Source |
 |---|---|---|
-| `guesses.txt` | Every accepted Guess (about 224,500 words) | Hspell 1.4 with prefix rules, plus common spelling variants |
-| `solutions.json` | The Solution pool, each flagged Hard or Common (about 5,250) | Hspell forms filtered by OpenSubtitles frequency, a blocklist, and prefix and variant checks; plus a hand-checked list of extra Hard words (`pipeline/book_hard.txt`) |
+| `guesses.txt` | Every accepted Guess | Hspell 1.4 with prefix rules, plus common spelling variants |
+| `solutions.json` | The Solution pool, each flagged Hard or Common | Hspell forms filtered by OpenSubtitles frequency, a blocklist, and prefix and variant checks; plus a hand-checked list of extra Hard words (`pipeline/book_hard.txt`) |
 | `definitions.json` | Meanings for some Solutions | Hebrew Wiktionary (CC BY-SA 4.0) |
 
 See [`pipeline/README.md`](pipeline/README.md) for the exact rules and how to rebuild.

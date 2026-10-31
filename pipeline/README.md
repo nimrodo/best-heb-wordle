@@ -24,6 +24,10 @@ Words found only in the subtitle corpus are never accepted.
 | `he_IL.dic`, `he_IL.aff` | [LibreOffice `he_IL`](https://github.com/LibreOffice/dictionaries/tree/master/he_IL), generated from Hspell 1.4 (AGPL-3.0) |
 | `he_full.txt` | [FrequencyWords `content/2018/he/he_full.txt`](https://github.com/hermitdave/FrequencyWords), OpenSubtitles2018 counts (CC BY-SA 4.0) |
 
+Keep downloaded inputs in `pipeline/data/` (git-ignored) so every session finds them in
+one place: `he_IL.dic`, `he_IL.aff`, `he_full.txt` and the Wiktionary dump
+(`hewiktionary-latest-pages-articles.xml.bz2`, see Meanings).
+
 ## Run
 
 ```sh
@@ -34,8 +38,7 @@ uv run wordlists \
   --corpus path/to/he_full.txt --out ../public/guesses.txt
 ```
 
-Takes about 15 seconds. The last build gave 223,744 Hspell forms plus 774
-variants (224,518 lines).
+Takes about 15 seconds. The build prints its own counts.
 
 ## Develop
 
@@ -142,8 +145,7 @@ word to its probability, sorted, compact. It is saved every 25 words and read
 first on a rerun, so an interrupted run resumes and scored words are not
 re-asked. Words that are no longer Hard are dropped from the file.
 
-The report printed at the end gives the Common and Hard pool sizes. The last
-build gave 2,298 Common and 2,763 Hard words (5,061 in all) at the 500 cut-off, 567 of the Common ones promoted by `nimble` or by its lemma. `book_hard.txt` then adds 189 Hard words (2,952 Hard, 5,250 in all). The detector module has no tests
+The report printed at the end gives the Common and Hard pool sizes and the words the model promoted; `book_hard.txt` then adds its Hard words. The detector module has no tests
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
 
@@ -173,10 +175,9 @@ uv run wordlists-definitions \
   --solutions ../public/solutions.json --out ../public/definitions.json
 ```
 
-Takes a few seconds. The committed file has Meanings for 632 of 5,250 Solutions
-(12.0%): 555 from the first build, plus 77 for the extra Hard words in
-`book_hard.txt`, added from a later build of the same dump without touching the
-earlier ones. A full rebuild would change a few existing Meanings.
+Takes a few seconds and prints its own coverage. `book_hard.txt`'s Meanings were added
+from a later build of the same dump without touching the earlier ones, so a full rebuild
+would change a few existing Meanings.
 
 ### Licence
 
