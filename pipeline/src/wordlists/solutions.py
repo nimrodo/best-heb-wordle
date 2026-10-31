@@ -24,8 +24,12 @@ from wordlists.guesses import (
 
 # Default; the CLI can override it (--common-min-hits).
 COMMON_MIN_HITS = 500
+# Default; the CLI can override it (--commonness-min-prob).
+COMMONNESS_MIN_PROB = 0.90
 # Below this a form is too rare to be a Solution at all.
 SOLUTION_MIN_HITS = 100
+
+DEFAULT_COMMONNESS = Path("commonness.json")
 
 PrefixDetector = Callable[[list[str]], set[str]]
 
@@ -34,6 +38,8 @@ PrefixDetector = Callable[[list[str]], set[str]]
 class Solution:
     word: str
     hard: bool
+    # Common only because the model said so, not because of its hit count.
+    promoted: bool = False
 
 
 def _parse_blocklist(blocklist: str) -> set[str]:
@@ -67,23 +73,26 @@ def _built_by_prefix(form: str, bare: set[str], prefixed: set[str]) -> bool:
     return form in prefixed and form not in bare
 
 
-def build_solutions(
-    dic: str,
-    aff: str,
-    corpus: str,
-    blocklist: str,
-    detect_prefix_attached: PrefixDetector,
-    common_min_hits: int = COMMON_MIN_HITS,
-) -> list[Solution]:
-    """Return the Solutions, sorted by word.
+def is_common(
+    hits: int, probability: float | None, common_min_hits: int, min_prob: float
+) -> bool:
+    """Promote only, never demote: the model scores inflected verbs too low."""
+    return hits >= common_min_hits or (
+        probability is not None and probability >= min_prob
+    )
 
-    `detect_prefix_attached` gets the surviving candidates and returns the ones
-    that are Prefix-attached forms. It is slow in production, so it runs last.
+
+def candidates(
+    dic: str, aff: str, corpus: str, blocklist: str
+) -> tuple[list[str], dict[str, int]]:
+    """Every form that clears all the cheap filters, and the hit counts.
+
+    The slow prefix detector is not applied here; it runs last in `build_solutions`.
     """
     counts = corpus_counts(corpus)
     bare, prefixed = split_forms(dic, aff)
     blocked = _parse_blocklist(blocklist)
-    candidates = sorted(
+    return sorted(
         form
         for form in bare | prefixed
         if len(form) == WORD_LENGTH
@@ -91,13 +100,41 @@ def build_solutions(
         and form not in blocked
         and not _built_by_prefix(form, bare, prefixed)
         and not _has_misleading_variant(form, counts)
-    )
-    attached = detect_prefix_attached(candidates)
-    return [
-        Solution(form, hard=counts[form] < common_min_hits)
-        for form in candidates
-        if form not in attached
-    ]
+    ), counts
+
+
+def build_solutions(
+    dic: str,
+    aff: str,
+    corpus: str,
+    blocklist: str,
+    detect_prefix_attached: PrefixDetector,
+    common_min_hits: int = COMMON_MIN_HITS,
+    commonness: dict[str, float] | None = None,
+    commonness_min_prob: float = COMMONNESS_MIN_PROB,
+) -> list[Solution]:
+    """Return the Solutions, sorted by word.
+
+    `detect_prefix_attached` gets the surviving candidates and returns the ones
+    that are Prefix-attached forms. It is slow in production, so it runs last.
+    `commonness` maps a word to the model's probability that it is everyday; a
+    word missing from it is judged on hits alone.
+    """
+    commonness = commonness or {}
+    words, counts = candidates(dic, aff, corpus, blocklist)
+    attached = detect_prefix_attached(words)
+    solutions = []
+    for form in words:
+        if form in attached:
+            continue
+        by_hits = counts[form] >= common_min_hits
+        common = is_common(
+            counts[form], commonness.get(form), common_min_hits, commonness_min_prob
+        )
+        solutions.append(
+            Solution(form, hard=not common, promoted=common and not by_hits)
+        )
+    return solutions
 
 
 def solutions_json(solutions: list[Solution]) -> str:
@@ -111,7 +148,11 @@ def solutions_json(solutions: list[Solution]) -> str:
 
 def pool_report(solutions: list[Solution]) -> str:
     hard = sum(s.hard for s in solutions)
-    return f"Common words: {len(solutions) - hard}\nHard words: {hard}"
+    lines = [f"Common words: {len(solutions) - hard}", f"Hard words: {hard}"]
+    promoted = [s.word for s in solutions if s.promoted]
+    if promoted:
+        lines.append(f"Promoted by the model ({len(promoted)}): " + " ".join(promoted))
+    return "\n".join(lines)
 
 
 def main() -> None:
@@ -128,12 +169,32 @@ def main() -> None:
         default=COMMON_MIN_HITS,
         help=f"hits from which a word is Common, not Hard (default {COMMON_MIN_HITS})",
     )
+    parser.add_argument(
+        "--commonness",
+        type=Path,
+        default=None,
+        help="commonness.json from wordlists-commonness; "
+        f"optional if absent (default {DEFAULT_COMMONNESS})",
+    )
+    parser.add_argument(
+        "--commonness-min-prob",
+        type=float,
+        default=COMMONNESS_MIN_PROB,
+        help="model probability from which a Hard word is promoted to Common "
+        f"(default {COMMONNESS_MIN_PROB})",
+    )
     parser.add_argument("--out", type=Path, required=True, help="output solutions.json")
     args = parser.parse_args()
+    read = lambda path: path.read_text(encoding="utf-8")
+    path = args.commonness or DEFAULT_COMMONNESS
+    commonness = None
+    if path.exists():
+        commonness = json.loads(read(path))
+    elif args.commonness:
+        parser.error(f"{path} does not exist")
     # Imported here so the tests and `wordlists` need no torch install.
     from wordlists.prefix_detector import detect_prefix_attached
 
-    read = lambda path: path.read_text(encoding="utf-8")
     solutions = build_solutions(
         read(args.dic),
         read(args.aff),
@@ -141,6 +202,8 @@ def main() -> None:
         read(args.blocklist),
         detect_prefix_attached,
         args.common_min_hits,
+        commonness,
+        args.commonness_min_prob,
     )
     args.out.write_text(solutions_json(solutions), encoding="utf-8")
     print(pool_report(solutions))
