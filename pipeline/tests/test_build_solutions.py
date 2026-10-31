@@ -8,7 +8,7 @@ import json
 from collections.abc import Iterable
 
 from wordlists import Solution, build_solutions
-from wordlists.solutions import solutions_json
+from wordlists.solutions import pool_report, solutions_json
 
 AFF = """\
 NEEDAFFIX j
@@ -24,6 +24,8 @@ def build(
     blocklist: str = "",
     prefix_attached: Iterable[str] = (),
     common_min_hits: int | None = None,
+    commonness: dict[str, float] | None = None,
+    commonness_min_prob: float | None = None,
 ) -> list[Solution]:
     dic = f"{len(dic_words)}\n" + "\n".join(dic_words) + "\n"
     flagged = set(prefix_attached)
@@ -34,6 +36,12 @@ def build(
         blocklist,
         lambda words: flagged & set(words),
         **({} if common_min_hits is None else {"common_min_hits": common_min_hits}),
+        commonness=commonness,
+        **(
+            {}
+            if commonness_min_prob is None
+            else {"commonness_min_prob": commonness_min_prob}
+        ),
     )
 
 
@@ -161,6 +169,50 @@ def test_detector_only_sees_candidates_that_clear_the_cutoff() -> None:
     dic = "2\nאבגדה\nתפוזי\n"
     build_solutions(dic, AFF, "אבגדה 500\nתפוזי 5", "", spy)
     assert seen == ["אבגדה"]
+
+
+# Commonness: the model can promote a Hard word to Common, never demote.
+
+
+def test_hard_word_with_probability_at_threshold_is_promoted() -> None:
+    assert build(["אבגדה"], ["אבגדה 360"], commonness={"אבגדה": 0.90}) == [
+        Solution("אבגדה", hard=False, promoted=True)
+    ]
+
+
+def test_hard_word_with_probability_just_below_threshold_stays_hard() -> None:
+    assert build(["אבגדה"], ["אבגדה 360"], commonness={"אבגדה": 0.89}) == [
+        Solution("אבגדה", hard=True)
+    ]
+
+
+def test_word_at_hit_cutoff_stays_common_whatever_its_probability() -> None:
+    assert build(["אבגדה"], ["אבגדה 500"], commonness={"אבגדה": 0.01}) == [
+        Solution("אבגדה", hard=False)
+    ]
+
+
+def test_word_missing_from_commonness_is_judged_on_hits_only() -> None:
+    assert build(["אבגדה"], ["אבגדה 360"], commonness={"תפוזי": 0.99}) == [
+        Solution("אבגדה", hard=True)
+    ]
+
+
+def test_commonness_threshold_is_configurable() -> None:
+    assert build(
+        ["אבגדה"], ["אבגדה 360"], commonness={"אבגדה": 0.5}, commonness_min_prob=0.5
+    ) == [Solution("אבגדה", hard=False, promoted=True)]
+
+
+def test_report_lists_promoted_words() -> None:
+    solutions = [
+        Solution("אבגדה", hard=False, promoted=True),
+        Solution("תפוזי", hard=True),
+    ]
+    report = pool_report(solutions)
+    assert "Common words: 1" in report
+    assert "Hard words: 1" in report
+    assert "אבגדה" in report
 
 
 # Blocklist: proper nouns and vulgar words, one per line.

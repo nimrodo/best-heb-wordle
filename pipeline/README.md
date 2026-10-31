@@ -79,8 +79,42 @@ uv run wordlists-solutions \
 `--common-min-hits` (default 500) sets where Common starts; the 100-hit floor
 is fixed.
 
+### Common rule: hits or the `nimble` model
+
+Frequency alone mislabels everyday words as Hard (אבהות has 360 hits). A word
+is Common if it has `--common-min-hits` or more hits, **or** `nimble`'s
+probability that it is an everyday word is at least `--commonness-min-prob`
+(default 0.90). It only **promotes**, never demotes: the model scores inflected
+verb forms too low (יהרסו 33%), so a word with enough hits stays Common
+whatever it said. A word absent from `commonness.json` is judged on hits alone.
+`--commonness` points at the scores file (default `commonness.json`, used when
+present; an explicit path that is missing is an error). The report lists the
+promoted words for review.
+
+### Scoring with `nimble` (`commonness.json`)
+
+The scores are produced by a separate script and committed, so the build never
+needs the model. It needs [Ollama](https://ollama.com) running locally with the
+`nimble` decision model. `nimble` is not a chat model: it is served at
+`/v1/systemone`, where a Noul question returns the probability of "yes". The
+question is "Is this an everyday Hebrew word that any ordinary adult Israeli
+knows?", asked of the word with its final letters restored.
+
+```sh
+uv run wordlists-commonness \
+  --dic path/to/he_IL.dic --aff path/to/he_IL.aff \
+  --corpus path/to/he_full.txt --blocklist blocklist.txt
+```
+
+It scores every candidate that is Hard by hits (it skips the slow prefix
+detector, so a few scored words may later be dropped). About 0.7 s per word,
+roughly 40 minutes in all. `commonness.json` (`--out`) maps each normalised
+word to its probability, sorted, compact. It is saved every 25 words and read
+first on a rerun, so an interrupted run resumes and scored words are not
+re-asked. Words that are no longer Hard are dropped from the file.
+
 The report printed at the end gives the Common and Hard pool sizes. The last
-build gave 1,749 Common and 3,347 Hard words (5,096 in all) at the 500 cut-off. The detector module has no tests
+build gave 2,261 Common and 2,835 Hard words (5,096 in all) at the 500 cut-off, 512 of the Common ones promoted by `nimble`. The detector module has no tests
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
 

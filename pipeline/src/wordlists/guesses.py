@@ -19,6 +19,7 @@ VARIANT_MIN_HITS = 100
 MATER_LECTIONIS = "וי"
 
 FINAL_TO_BASE = str.maketrans("ךםןףץ", "כמנפצ")
+BASE_TO_FINAL = str.maketrans("כמנפצ", "ךםןףץ")
 HEBREW_WORD = re.compile(r"[א-ת]+")
 
 

@@ -9,6 +9,7 @@ dependencies = []
 [project.scripts]
 wordlists = "wordlists:main"
 wordlists-solutions = "wordlists.solutions:main"
+wordlists-commonness = "wordlists.commonness:main"
 
 [project.optional-dependencies]
 detector = [
