@@ -118,3 +118,43 @@ build gave 2,261 Common and 2,835 Hard words (5,096 in all) at the 500 cut-off, 
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
 
+## Meanings (`definitions.json`)
+
+A JSON object mapping a Solution (normalised form, as in `solutions.json`) to its
+Meaning, sorted, compact. It lives in `pipeline/`, not `public/`, until the
+game loads it. Built only for Solutions, from the Hebrew Wiktionary dump
+(`hewiktionary-latest-pages-articles.xml.bz2`, from
+[dumps.wikimedia.org](https://dumps.wikimedia.org/hewiktionary/latest/)):
+
+1. Exact form only, with no lemmatiser: the entry's title must be the Solution
+   itself (final letters normalised; a title with a final letter mid-word is
+   ignored). An inflected Solution whose form has no entry of its own gets no
+   Meaning.
+2. First sense only: the first top-level `# ` line of the entry.
+3. Wikitext cleaned to plain text (templates, refs and HTML removed, links
+   reduced to their display text, quote markup removed, whitespace collapsed).
+4. Under 15 characters: dropped. Over 120: cut at a word and ended with `…`.
+
+A Solution with no Meaning stays in `solutions.json` (a Meaning is optional).
+The dump is streamed, never loaded whole, and treated as untrusted data.
+
+```sh
+uv run wordlists-definitions \
+  --dump path/to/hewiktionary-latest-pages-articles.xml.bz2 \
+  --solutions ../public/solutions.json --out definitions.json
+```
+
+Takes a few seconds. The last build (dump of 2026-10) gave Meanings for 577 of
+5,096 Solutions (11.3%).
+
+### Licence
+
+`definitions.json` is the only CC BY-SA 4.0 file in the project: its text is
+derived from [Hebrew Wiktionary](https://he.wiktionary.org) entries by
+Wiktionary contributors, licensed
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); each Meaning
+is a shortened, cleaned excerpt of an entry's first sense. Any reuse of the
+file must keep this attribution and the same licence. (The OpenSubtitles counts
+in `he_full.txt` are also CC BY-SA 4.0 but are an input only and are not
+shipped.)
+
