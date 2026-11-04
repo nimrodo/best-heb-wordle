@@ -70,7 +70,10 @@ Solutions). A candidate is kept if:
    from the model repo (about 715 MB). It runs only on candidates that survive
    1-4, and it over-flags by design but still misses some.
 
-6. Extra Hard words: `book_hard.txt` (`--extra-hard`, default when present) lists
+6. It is not a Construct form (`construct_forms.txt`, see below). This applies last,
+   to Common words, Hard words and `book_hard.txt` alike.
+
+7. Extra Hard words: `book_hard.txt` (`--extra-hard`, default when present) lists
    hand-checked words, from a vocabulary book's headwords, that are too rare
    for the cut-off. The build adds each one that is not already a Solution as a
    Hard word, skipping rules 1-5 (they were screened against 2-4 by hand and are
@@ -148,6 +151,43 @@ re-asked. Words that are no longer Hard are dropped from the file.
 The report printed at the end gives the Common and Hard pool sizes and the words the model promoted; `book_hard.txt` then adds its Hard words. The detector module has no tests
 (it is the model boundary), so spot-check the output for Prefix-attached forms
 and names and add them to `blocklist.txt`.
+
+### Construct forms (`construct_forms.txt`)
+
+A **Construct form** (the first word of a smichut, like אבטחת in אבטחת המידע) is
+never a Solution, Common or Hard, `book_hard.txt` included; it stays a valid Guess.
+The build drops every word in `construct_forms.txt`, last of all.
+
+The list comes from Hspell's own morphology data. Hspell tags a reading `סמיכות`
+when a form *can* be a construct form, but lists a homograph twice, once plain and
+once tagged (אוכלת, פשרות, גברת): those are complete words as they stand. A form
+with a tagged noun or participle reading and no plain reading is a Construct form
+(אבטחת, אוהדי, רודפי). Possessive nouns (`של/אני`) and past-tense verbs only share
+the spelling, so they do not count as plain. On a hand-labelled sample the rule
+caught 10 of 16 construct forms and wrongly flagged 1 of 32 other words. A
+`nimble` question was tried first and could not tell them apart (AUC 0.76 at best).
+
+Limits: a form spelled the same in both states (שלשלת, חורשת, a masculine singular)
+cannot be told apart, so it stays. Forms Hspell lacks (זריחת, אחיזת, פלישת) are
+invisible to the rule; skim the Solutions for them and add them to `blocklist.txt`.
+
+`nouns.hif` and `verbs.hif` are generated from the Hspell 1.4 sources
+([hspell.ivrix.org.il](http://hspell.ivrix.org.il/hspell-1.4.tar.gz)), in ISO-8859-8.
+The `make` step needs Perl to find `PrefixBits.pl`, so build the two files directly:
+
+```sh
+perl -I. -w wolig.pl -d wolig.dat > nouns.hif
+perl -I. -w woo -d woo.dat | sed "/\+/d" > verbs.hif
+```
+
+Then, from `pipeline/`:
+
+```sh
+uv run wordlists-construct --nouns data/nouns.hif --verbs data/verbs.hif
+```
+
+It writes `construct_forms.txt` (every 5-letter Construct form in Hspell, about 3,500)
+and prints the count. Rebuild `solutions.json` afterwards.
 
 ## Meanings (`definitions.json`)
 

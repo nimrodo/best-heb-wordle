@@ -4,7 +4,8 @@ Candidates are 5-letter forms in Hspell (the Academy spelling), so spelling
 variants that only Guesses accept never appear. A candidate must clear the
 frequency cut-off, not be blocklisted, not be a Prefix-attached form (by the
 dictionary's prefix rules, then by the model), and not
-have a common alternative spelling of a different length.
+have a common alternative spelling of a different length. A Construct form (from
+Hspell's morphology) is dropped last, whether Common, Hard or hand-checked.
 """
 
 import argparse
@@ -43,6 +44,7 @@ SOLUTION_MIN_HITS = 100
 DEFAULT_COMMONNESS = Path("commonness.json")
 DEFAULT_LEMMA_COMMONNESS = Path("lemma_commonness.json")
 DEFAULT_EXTRA_HARD = Path("book_hard.txt")
+DEFAULT_CONSTRUCT = Path("construct_forms.txt")
 
 PrefixDetector = Callable[[list[str]], set[str]]
 
@@ -55,7 +57,7 @@ class Solution:
     promoted: bool = False
 
 
-def _parse_word_list(text: str) -> set[str]:
+def parse_word_list(text: str) -> set[str]:
     """One word per line; `#` comments and blank lines ignored, final letters normalised."""
     lines = (line.strip() for line in text.splitlines())
     return {normalise(line) for line in lines if line and not line.startswith("#")}
@@ -120,7 +122,7 @@ def candidates(
     """
     counts = corpus_counts(corpus)
     bare, prefixed = split_forms(dic, aff)
-    blocked = _parse_word_list(blocklist)
+    blocked = parse_word_list(blocklist)
     return sorted(
         form
         for form in bare | prefixed
@@ -143,6 +145,7 @@ def build_solutions(
     commonness_min_prob: float = COMMONNESS_MIN_PROB,
     lemma_commonness: dict[str, float] | None = None,
     extra_hard: str = "",
+    construct: str = "",
 ) -> list[Solution]:
     """Return the Solutions, sorted by word.
 
@@ -152,8 +155,11 @@ def build_solutions(
     word missing from it is judged on hits alone. `lemma_commonness` maps an
     inferred lemma to the same probability. `extra_hard` is a hand-checked word
     list (see `book_hard.txt`): each word not already a Solution is added as a
-    Hard word, whatever its hit count, and skips the filters above.
+    Hard word, whatever its hit count, and skips the filters above. `construct`
+    is the Construct form list (see `construct_forms.txt`); its words are
+    dropped last, even from `extra_hard`.
     """
+    construct_forms = parse_word_list(construct)
     commonness = commonness or {}
     lemma_commonness = lemma_commonness or {}
     index = build_index(dic, aff) if lemma_commonness else {}
@@ -178,10 +184,13 @@ def build_solutions(
     known = {s.word for s in solutions}
     solutions += [
         Solution(word, hard=True)
-        for word in _parse_word_list(extra_hard)
+        for word in parse_word_list(extra_hard)
         if word not in known
     ]
-    return sorted(solutions, key=lambda s: s.word)
+    return sorted(
+        (s for s in solutions if s.word not in construct_forms),
+        key=lambda s: s.word,
+    )
 
 
 def solutions_json(solutions: list[Solution]) -> str:
@@ -250,6 +259,12 @@ def main() -> None:
         f"optional if absent (default {DEFAULT_LEMMA_COMMONNESS})",
     )
     parser.add_argument(
+        "--construct",
+        type=Path,
+        default=DEFAULT_CONSTRUCT,
+        help=f"Construct forms from wordlists-construct (default {DEFAULT_CONSTRUCT})",
+    )
+    parser.add_argument(
         "--extra-hard",
         type=Path,
         default=DEFAULT_EXTRA_HARD,
@@ -276,6 +291,7 @@ def main() -> None:
         args.commonness_min_prob,
         lemma_commonness,
         read(args.extra_hard) if args.extra_hard.exists() else "",
+        read(args.construct) if args.construct.exists() else "",
     )
     args.out.write_text(solutions_json(solutions), encoding="utf-8")
     print(pool_report(solutions))

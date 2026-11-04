@@ -2,6 +2,7 @@
 # Each is a 5-letter Hspell form that cleared the blocklist, Prefix-attached and
 # spelling-variant filters, but is too rare for the frequency cut-off. The build
 # adds them as Hard words. Hand-edited; one word per line, final letters normal.
+# Construct forms (construct_forms.txt) are dropped from the pool, so keep them out.
 אדנית
 אדרבא
 אורחה
@@ -70,7 +71,6 @@
 חורשפ
 חלחול
 חלחלה
-חלכאי
 חלמאי
 חציצה
 חרישי
@@ -81,7 +81,6 @@
 יקיצה
 כאוטי
 כותפת
-כותרי
 כלונס
 כלימה
 לטנטי

@@ -9,7 +9,7 @@ One round of the game: a hidden Solution and up to six Guesses to find it.
 _Avoid_: Game, round, level
 
 **Solution**:
-The hidden five-letter Hebrew word a player is trying to find. Never a Prefix-attached form.
+The hidden five-letter Hebrew word a player is trying to find. Never a Prefix-attached form or a Construct form.
 _Avoid_: Answer, target word, secret word
 
 **Guess**:
@@ -23,6 +23,10 @@ _Avoid_: Relation letter, clitic
 **Prefix-attached form**:
 A word that is a Prefix letter plus another word. Such forms are excluded from Solutions.
 _Avoid_: Prefixed word
+
+**Construct form**:
+A noun in its linked form before another noun, as in זריחת in זריחת השמש or אוהדי in אוהדי הקבוצה. Excluded from Solutions, easy or hard; still accepted as a Guess.
+_Avoid_: Smichut form, bound form
 
 **Hard word**:
 A Solution that is valid but uncommon, and is marked as such for the player.

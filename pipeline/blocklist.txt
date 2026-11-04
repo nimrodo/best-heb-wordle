@@ -107,3 +107,32 @@
 # Skim of the full Common list (issue #22): unfamiliar
 נינגס
 רובכמ
+
+# Construct forms (issue #67) that Hspell's morphology data lacks, so
+# construct_forms.txt cannot catch them
+זריחת
+אחיזת
+פלישת
+פריסת
+סקירת
+ספיקת
+נסיגת
+שאיבת
+שקיעת
+עריפת
+גלישת
+שחיית
+קריסת
+פריחת
+שתיקת
+גביית
+הפחתת
+העלאת
+ארבעת
+שלושת
+
+# Not a word (issue #67)
+למשעי
+
+# Vulgar (found while reviewing issue #67)
+זיוני
