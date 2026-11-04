@@ -28,6 +28,7 @@ def build(
     commonness_min_prob: float | None = None,
     lemma_commonness: dict[str, float] | None = None,
     extra_hard: str = "",
+    construct: str = "",
 ) -> list[Solution]:
     dic = f"{len(dic_words)}\n" + "\n".join(dic_words) + "\n"
     flagged = set(prefix_attached)
@@ -41,6 +42,7 @@ def build(
         commonness=commonness,
         lemma_commonness=lemma_commonness,
         extra_hard=extra_hard,
+        construct=construct,
         **(
             {}
             if commonness_min_prob is None
@@ -303,4 +305,28 @@ def test_solutions_json_is_a_valid_array_of_word_and_hard() -> None:
     assert json.loads(text) == [
         {"word": "אבגדה", "hard": True},
         {"word": "תפוזי", "hard": False},
+    ]
+
+
+# Construct forms (issue #67): dropped from the Solutions, Common and Hard alike.
+
+
+def test_construct_form_is_dropped_whatever_its_hit_count() -> None:
+    corpus = ["זריחת 5000", "אבגדה 360", "גדהוז 5000"]
+    result = build(["זריחת", "אבגדה", "גדהוז"], corpus, construct="זריחת\nאבגדה\n")
+    assert result == [Solution("גדהוז", hard=False)]
+
+
+def test_word_not_in_the_construct_list_is_kept() -> None:
+    result = build(["זריחת"], ["זריחת 5000"], construct="אחר\n")
+    assert result == [Solution("זריחת", hard=False)]
+
+
+def test_construct_list_ignores_comments_and_final_letters() -> None:
+    assert build(["אבדכמ"], ["אבדכמ 5000"], construct="# note\nאבדךם\n") == []
+
+
+def test_construct_form_is_dropped_from_the_hand_checked_hard_words_too() -> None:
+    assert build([], [], extra_hard="זריחת\nאבגדה\n", construct="זריחת") == [
+        Solution("אבגדה", hard=True)
     ]
