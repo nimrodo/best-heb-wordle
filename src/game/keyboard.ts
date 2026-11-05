@@ -1,12 +1,12 @@
 import { normalise, type GameEvent } from "./game";
 
 // On-screen key names are the letter itself, or "enter" / "backspace".
-// SI-1452 without the sofit keys. Backspace starts row 2 and Enter starts row 3 (both on the right), so rows 2 and 3
-// are the same width and row 1's six letters sit centred above them.
+// SI-1452 without the sofit keys, listed in drawn order, left to right (.kb-row is forced ltr in CSS even though the
+// page is rtl). Backspace ends row 1 and Enter ends row 3; row 2 is letters only, so all rows centre.
 export const KEY_ROWS: readonly (readonly string[])[] = [
-  [..."קראטופ"],
-  ["backspace", ..."שדגכעיחל"],
-  ["enter", ..."זסבהנמצת"],
+  [..."קראטופ", "backspace"],
+  [..."שדגכעיחל"],
+  [..."זסבהנמצת", "enter"],
 ];
 
 // Hebrew letter on each physical key of the standard Hebrew layout, used when the

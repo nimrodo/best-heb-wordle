@@ -10,14 +10,11 @@ test("the on-screen keyboard has the 22 SI-1452 letters and no sofit keys", () =
   expect(letters.join("")).not.toMatch(/[ךםןףץ]/);
 });
 
-test("row 1 is the six letters with no empty slots", () => {
-  expect(KEY_ROWS[0]).toEqual([..."קראטופ"]);
-});
-
-// Backspace opens row 2 and Enter opens row 3, so both sit on the right (first in RTL) and each row is letters plus one wide key.
-test("Backspace starts row 2 and Enter starts row 3", () => {
-  expect(KEY_ROWS[1]).toEqual(["backspace", ..."שדגכעיחל"]);
-  expect(KEY_ROWS[2]).toEqual(["enter", ..."זסבהנמצת"]);
+// Rows are listed in the order they are drawn, left to right (the keyboard rows are forced ltr in CSS).
+test("rows read left to right like the physical Hebrew keyboard", () => {
+  expect(KEY_ROWS[0]).toEqual([..."קראטופ", "backspace"]);
+  expect(KEY_ROWS[1]).toEqual([..."שדגכעיחל"]);
+  expect(KEY_ROWS[2]).toEqual([..."זסבהנמצת", "enter"]);
 });
 
 test("a Hebrew key press becomes a letter event", () => {

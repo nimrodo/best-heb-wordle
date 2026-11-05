@@ -77,7 +77,7 @@ h1 {
 button { color: inherit; border: 0; cursor: pointer; }
 .keyboard { display: grid; gap: 7px; width: min(100%, 460px); padding: 0 6px; margin-top: auto; }
 /* One key width for every key: the unit is a row of 9.5 (Enter and Backspace count 1.5, the rest 1). */
-.kb-row { --unit: calc((100% - 8 * 5px) / 9.5); display: flex; justify-content: center; gap: 5px; }
+.kb-row { --unit: calc((100% - 8 * 5px) / 9.5); display: flex; direction: ltr; justify-content: center; gap: 5px; }
 .key {
   flex: 0 0 var(--unit); min-width: 0; height: 56px; padding: 0; font: inherit; font-size: 22px; font-weight: 600;
   border-radius: 14px; background: #231e5c; box-shadow: 0 3px 0 #0b0924;
