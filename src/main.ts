@@ -176,8 +176,7 @@ function onKey(key: string): void {
 
 // Other tabs may have saved results since this tab last did.
 function openStats(): void {
-  store = { ...store, stats: currentStats(localStorage, store) };
-  setOverlay({ kind: "stats", stats: store.stats });
+  setOverlay({ kind: "stats", stats: currentStats(localStorage, store) });
 }
 
 // A Puzzle in progress is only given up after the player confirms.

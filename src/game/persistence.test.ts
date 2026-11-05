@@ -55,6 +55,12 @@ describe("store", () => {
     expect(loadStore(memoryStorage({ [KEY]: JSON.stringify(store) })).puzzle).toEqual(store.puzzle);
   });
 
+  test("a Puzzle saved without an id loads as it was saved", () => {
+    expect(loadStore(memoryStorage({ [KEY]: JSON.stringify(store) })).puzzle?.id).toBeUndefined();
+    const bad = JSON.stringify({ ...store, puzzle: { ...store.puzzle, id: 7 } });
+    expect(loadStore(memoryStorage({ [KEY]: bad }))).toEqual(emptyStore());
+  });
+
   test("a sent marker of the wrong type resets quietly", () => {
     const bad = JSON.stringify({ ...store, puzzle: { ...store.puzzle, sent: "yes" } });
     expect(loadStore(memoryStorage({ [KEY]: bad }))).toEqual(emptyStore());
@@ -201,10 +207,9 @@ describe("tabs sharing played and results", () => {
     expect(loadStore(storage).stats.wins).toEqual([0, 1, 0, 0, 0, 0]);
   });
 
-  test("two different Puzzles finished in two tabs both count", () => {
+  test("a Puzzle already recorded is still recognised after another Puzzle was recorded", () => {
     const storage = memoryStorage();
     saveStore(storage, emptyStore(), win(2, "one"));
-    // A third finish of "one" comes after "two" was recorded: it is still known.
     saveStore(storage, emptyStore(), win(3, "two"));
     const saved = saveStore(storage, emptyStore(), win(4, "one"));
 
