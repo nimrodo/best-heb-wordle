@@ -13,6 +13,18 @@ describe("link payload", () => {
     expect(decodeWord(encodeWord("אשלגנ"))).toBe("אשלגנ");
   });
 
+  // Links already sent live in chats and bookmarks, so the format must never change: these
+  // literals were produced by the first release and have to keep decoding to the same word.
+  test.each([
+    ["ספרימ", "S9cPh2M"],
+    ["אשלגנ", "WtobjH0"],
+    ["ולבית", "X88Wh3c"],
+    ["זריחת", "XNseiXc"],
+  ])("the link payload for %s stays %s", (word, payload) => {
+    expect(encodeWord(word)).toBe(payload);
+    expect(decodeWord(payload)).toBe(word);
+  });
+
   test("the payload is url-safe and does not contain the word", () => {
     const payload = encodeWord("ספרימ");
     expect(payload).toMatch(/^[A-Za-z0-9_-]+$/);
