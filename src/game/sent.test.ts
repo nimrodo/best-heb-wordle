@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { TOAST_NOT_IN_LIST, TOAST_TOO_SHORT } from "./game";
-import { checkSendWord, decodeWord, encodeWord } from "./sent";
+import { TOAST_BAD_CHARACTER, TOAST_TOO_LONG, checkSendWord, decodeWord, encodeWord } from "./sent";
 
 const words = new Set(["שלום", "אשלגנ", "ולבית", "זריחת", "ספרימ"]);
 
@@ -11,6 +11,18 @@ describe("link payload", () => {
 
   test("round-trips a word ending in a letter that has a final form", () => {
     expect(decodeWord(encodeWord("אשלגנ"))).toBe("אשלגנ");
+  });
+
+  // Links already sent live in chats and bookmarks, so the format must never change: these
+  // literals were produced by the first release and have to keep decoding to the same word.
+  test.each([
+    ["ספרימ", "S9cPh2M"],
+    ["אשלגנ", "WtobjH0"],
+    ["ולבית", "X88Wh3c"],
+    ["זריחת", "XNseiXc"],
+  ])("the link payload for %s stays %s", (word, payload) => {
+    expect(encodeWord(word)).toBe(payload);
+    expect(decodeWord(payload)).toBe(word);
   });
 
   test("the payload is url-safe and does not contain the word", () => {
@@ -47,5 +59,18 @@ describe("checkSendWord", () => {
 
   test("rejects a short word", () => {
     expect(checkSendWord("שלום", words)).toEqual({ ok: false, message: TOAST_TOO_SHORT });
+  });
+
+  test.each(["שלומי1", "שלו מי", "שלום!", "shalom", "שלום "])("rejects stray character in %j", (input) => {
+    expect(checkSendWord(input, words)).toEqual({ ok: false, message: TOAST_BAD_CHARACTER });
+  });
+
+  test("rejects a word longer than five letters", () => {
+    expect(checkSendWord("שלומיים", words)).toEqual({ ok: false, message: TOAST_TOO_LONG });
+  });
+
+  test("accepts a niqqud-marked word", () => {
+    expect(checkSendWord("שָׁלוֹם", words)).toEqual({ ok: false, message: TOAST_TOO_SHORT });
+    expect(checkSendWord("אַשְׁלָגָן", words)).toEqual({ ok: true, word: "אשלגנ" });
   });
 });
