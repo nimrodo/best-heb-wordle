@@ -9,7 +9,7 @@ One round of the game: a hidden Solution and up to six Guesses to find it. Its r
 _Avoid_: Game, round, level
 
 **Sent Puzzle**:
-A Puzzle whose Solution was chosen by another player and delivered as a link. The word may be any word in the Guess list, so the rules below for Solutions do not apply to it. It is never a Hard word, is not drawn from the Solution list, and does not count toward Streak or stats, even when abandoned.
+A Puzzle whose Solution was chosen by another player and delivered as a link. The word may be any word in the Guess list, so the rules below for Solutions do not apply to it. It is a Hard word only when its word is a Hard word in the Solution list; Guess-list-only words (e.g. Prefix-attached and Construct forms) are never marked. It is not drawn from the Solution list, and does not count toward Streak or stats, even when abandoned.
 _Avoid_: Shared game, challenge, custom word
 
 **Solution**:

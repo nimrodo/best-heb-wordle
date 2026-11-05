@@ -70,6 +70,13 @@ describe("store", () => {
     expect(loadStore(memoryStorage({ [KEY]: bad }))).toEqual(emptyStore());
   });
 
+  test("a hard Sent Puzzle keeps both markers", () => {
+    const hardSent = { ...store, puzzle: { ...store.puzzle!, hard: true, sent: true } };
+    const storage = memoryStorage();
+    saveStore(storage, hardSent);
+    expect(loadStore(storage)).toEqual(hardSent);
+  });
+
   test("a sent marker of the wrong type resets quietly", () => {
     const bad = JSON.stringify({ ...store, puzzle: { ...store.puzzle, sent: "yes" } });
     expect(loadStore(memoryStorage({ [KEY]: bad }))).toEqual(emptyStore());

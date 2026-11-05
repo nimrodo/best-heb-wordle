@@ -14,6 +14,10 @@ export function drawSolution(pool: readonly SolutionEntry[], random: () => numbe
   return pick(kind, random);
 }
 
+// Hardness of a sent word comes from the Solution list; a word that is not in it is never Hard.
+export const isHardSolution = (word: string, pool: readonly SolutionEntry[]): boolean =>
+  pool.some((s) => s.word === word && s.hard);
+
 // Draws a Solution not yet played. Once every Solution in the pool has been played the
 // played list clears, so play never stalls. Words that left the pool stay in the list
 // until then; they cost nothing.

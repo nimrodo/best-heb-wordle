@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { drawSolution, drawUnplayed, HARD_SHARE, type SolutionEntry } from "./draw";
+import { drawSolution, drawUnplayed, HARD_SHARE, isHardSolution, type SolutionEntry } from "./draw";
 
 // mulberry32: a small seeded random source so the draw ratio is reproducible.
 function seeded(seed: number): () => number {
@@ -71,5 +71,13 @@ describe("drawUnplayed", () => {
   test("played words that left the pool do not block the draw", () => {
     const drawn = drawUnplayed(small, ["gone"], seeded(1));
     expect(drawn.played).toEqual(["gone", drawn.entry.word]);
+  });
+});
+
+describe("isHardSolution", () => {
+  test("is true only for a word that is a Hard entry in the pool", () => {
+    expect(isHardSolution("h3", pool)).toBe(true);
+    expect(isHardSolution("c3", pool)).toBe(false);
+    expect(isHardSolution("not-in-pool", pool)).toBe(false);
   });
 });
