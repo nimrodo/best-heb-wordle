@@ -73,8 +73,8 @@ function persist(): void {
 
 const restored = store.puzzle ? restorePuzzle(store.puzzle, words, { loading }) : null;
 const sentWord = incoming && incoming !== "bad" ? incoming : null;
-// A link replaces a finished or missing Puzzle at once; one in progress waits for the abandon question.
-const askFirst = sentWord !== null && restored?.status === "playing";
+// A link replaces a finished, missing or untouched Puzzle at once; one with Guesses waits for the abandon question.
+const askFirst = sentWord !== null && restored?.status === "playing" && restored.guesses.length > 0;
 let state: GameState = askFirst || !sentWord ? (restored ?? randomPuzzle()) : sentPuzzle(sentWord);
 if (incoming === "bad") state = { ...state, toast: TOAST_BAD_LINK };
 // Input is ignored while a submitted Guess is being revealed.
