@@ -59,7 +59,8 @@ export const hardLine = (stats: Stats): string => `מילים קשות: ${stats.
 
 const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0;
 
-export function isStats(v: any): v is Stats {
+export function isStats(value: unknown): value is Stats {
+  const v = value as Partial<Record<keyof Stats, unknown>> | null | undefined;
   return (
     Array.isArray(v?.wins) &&
     v.wins.length === MAX_GUESSES &&

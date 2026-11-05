@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { TOAST_NOT_IN_LIST, TOAST_TOO_SHORT } from "./game";
-import { TOAST_BAD_CHARACTER, TOAST_TOO_LONG, checkSendWord, decodeWord, encodeWord } from "./sent";
+import { checkSendWord, decodeWord, encodeWord, TOAST_BAD_CHARACTER, TOAST_TOO_LONG } from "./sent";
 
 const words = new Set(["שלום", "אשלגנ", "ולבית", "זריחת", "ספרימ"]);
 

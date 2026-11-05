@@ -2,13 +2,21 @@ import "@fontsource/rubik/hebrew-400.css";
 import "@fontsource/rubik/hebrew-600.css";
 import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
-import { abandonOutcome, isOpeningCombo, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
-import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
-import { canShare, render, revealDuration, showHeart, showToast, type EndView, type Overlay } from "./ui";
-import { checkSendWord, decodeWord, encodeWord } from "./game/sent";
 import { drawUnplayed, type SolutionEntry } from "./game/draw";
+import {
+  abandonOutcome,
+  type GameEvent,
+  type GameState,
+  isOpeningCombo,
+  newPuzzle,
+  reduce,
+  restorePuzzle,
+} from "./game/game";
+import { eventFromKeyboard, eventFromKeyName } from "./game/keyboard";
 import { loadStore, saveStore } from "./game/persistence";
+import { checkSendWord, decodeWord, encodeWord } from "./game/sent";
 import { recordLoss, recordWin, type Stats } from "./game/stats";
+import { canShare, type EndView, type Overlay, render, revealDuration, showHeart, showToast } from "./ui";
 import { loadDefinitions, loadGuesses, loadSolutions } from "./words";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -169,7 +177,10 @@ function setOverlay(overlay: Overlay | null): void {
 
 function sendWord(input: string): void {
   const check = checkSendWord(input, words);
-  if (!check.ok) return setOverlay({ kind: "send", input, error: check.message, link: null });
+  if (!check.ok) {
+    setOverlay({ kind: "send", input, error: check.message, link: null });
+    return;
+  }
   const link = `${location.origin}${import.meta.env.BASE_URL}?${LINK_PARAM}=${encodeWord(check.word)}`;
   setOverlay({ kind: "send", input, error: null, link });
 }

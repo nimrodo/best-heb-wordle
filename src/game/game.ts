@@ -21,10 +21,7 @@ export type GameState = {
   readonly status: Status;
 };
 
-export type GameEvent =
-  | { type: "letter"; letter: string }
-  | { type: "backspace" }
-  | { type: "enter" };
+export type GameEvent = { type: "letter"; letter: string } | { type: "backspace" } | { type: "enter" };
 
 export const TOAST_TOO_SHORT = "אין מספיק אותיות";
 export const TOAST_NOT_IN_LIST = "המילה לא ברשימה";
@@ -124,8 +121,7 @@ function submit(state: GameState): GameState {
   }
   const guess: Guess = { word: state.current, marks: score(state.current, state.solution) };
   const guesses = [...state.guesses, guess];
-  const status: Status =
-    guess.word === state.solution ? "won" : guesses.length >= MAX_GUESSES ? "lost" : "playing";
+  const status: Status = guess.word === state.solution ? "won" : guesses.length >= MAX_GUESSES ? "lost" : "playing";
   return { ...state, guesses, current: "", keys: mergeKeys(state.keys, guess), status };
 }
 

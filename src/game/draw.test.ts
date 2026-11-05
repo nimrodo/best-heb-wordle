@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { HARD_SHARE, drawSolution, drawUnplayed, type SolutionEntry } from "./draw";
+import { drawSolution, drawUnplayed, HARD_SHARE, type SolutionEntry } from "./draw";
 
 // mulberry32: a small seeded random source so the draw ratio is reproducible.
 function seeded(seed: number): () => number {

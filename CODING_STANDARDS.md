@@ -1,6 +1,6 @@
 # Coding standards
 
-Read during review. TypeScript: `npm run typecheck` and `npm test` must pass.
+Read during review. TypeScript: `npm run lint`, `npm run typecheck` and `npm test` must pass.
 
 - Game rules live in `src/game/` as pure, DOM-free functions. `src/ui.ts` renders state and owns animation timing; `src/main.ts` wires events and holds the single mutable state.
 - Letters are stored in normal form; sofit is a display matter (`displayLetter`).

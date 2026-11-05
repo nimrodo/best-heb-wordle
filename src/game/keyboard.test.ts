@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { KEY_ROWS, eventFromKeyName, eventFromKeyboard } from "./keyboard";
+import { eventFromKeyboard, eventFromKeyName, KEY_ROWS } from "./keyboard";
 
 const press = (key: string, code = "", mods: Partial<KeyboardEvent> = {}) =>
   eventFromKeyboard({ key, code, ctrlKey: false, metaKey: false, altKey: false, ...mods });

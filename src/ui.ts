@@ -1,15 +1,15 @@
 import {
+  displayLetter,
+  type GameState,
   MAX_GUESSES,
+  type Mark,
   TOAST_LOADING,
   TOAST_TOO_SHORT,
   WORD_LENGTH,
-  displayLetter,
-  type GameState,
-  type Mark,
 } from "./game/game";
 import { KEY_ROWS } from "./game/keyboard";
 import { resultCopy } from "./game/result";
-import { hardLine, summarise, type Stats } from "./game/stats";
+import { hardLine, type Stats, summarise } from "./game/stats";
 import { reportUrl } from "./report";
 
 export type Handlers = { onKey: (key: string) => void; onSendWord: (input: string) => void };
@@ -129,7 +129,14 @@ function announcement(state: GameState): string {
 
 // Every sheet shares a backdrop that closes it, and (unless `closable` is false) a close button.
 // `dismiss` is the key both send; `title` is the heading the dialog is labelled by, with element id `id`.
-type Shell = { id: string; title: string; dismiss: string; cls?: string; role?: "dialog" | "alertdialog"; closable?: boolean };
+type Shell = {
+  id: string;
+  title: string;
+  dismiss: string;
+  cls?: string;
+  role?: "dialog" | "alertdialog";
+  closable?: boolean;
+};
 
 function sheet({ id, title, dismiss, cls = "", role = "dialog", closable = true }: Shell, content: string): string {
   return `
