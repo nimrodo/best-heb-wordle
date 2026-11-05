@@ -1,6 +1,14 @@
 import { describe, expect, test } from "vitest";
 import { TOAST_NOT_IN_LIST, TOAST_TOO_SHORT } from "./game";
-import { checkSendWord, decodeWord, encodeWord, TOAST_BAD_CHARACTER, TOAST_TOO_LONG } from "./sent";
+import {
+  checkSendWord,
+  decodeLinkId,
+  decodeWord,
+  encodeWord,
+  newLinkId,
+  TOAST_BAD_CHARACTER,
+  TOAST_TOO_LONG,
+} from "./sent";
 
 const words = new Set(["שלום", "אשלגנ", "ולבית", "זריחת", "ספרימ"]);
 
@@ -72,5 +80,23 @@ describe("checkSendWord", () => {
   test("accepts a niqqud-marked word", () => {
     expect(checkSendWord("שָׁלוֹם", words)).toEqual({ ok: false, message: TOAST_TOO_SHORT });
     expect(checkSendWord("אַשְׁלָגָן", words)).toEqual({ ok: true, word: "אשלגנ" });
+  });
+});
+
+describe("link id", () => {
+  test("a new id is url-safe and differs each time", () => {
+    const id = newLinkId();
+    expect(id).toMatch(/^[A-Za-z0-9_-]{8,32}$/);
+    expect(newLinkId()).not.toBe(id);
+  });
+
+  test("a made id is read back as it is", () => {
+    const id = newLinkId();
+    expect(decodeLinkId(id)).toBe(id);
+  });
+
+  // Links sent before ids existed have none and must still open; they just count each time.
+  test.each([null, "", "has space", "a/b", "x".repeat(33)])("a missing or unusable id %j reads as null", (raw) => {
+    expect(decodeLinkId(raw)).toBeNull();
   });
 });

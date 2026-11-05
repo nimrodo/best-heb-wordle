@@ -204,9 +204,9 @@ describe("restorePuzzle: sent marker", () => {
 });
 
 describe("abandoning a Puzzle", () => {
-  test("a Sent Puzzle with Guesses counts as nothing", () => {
+  test("a Sent Puzzle with Guesses counts as a loss, like any Puzzle", () => {
     const sent = { ...submit(newPuzzle("שולחנ", new Set(["מחברת"]), { sent: true }), "מחברת") };
-    expect(abandonOutcome(sent)).toBeNull();
+    expect(abandonOutcome(sent)).toBe("lost");
   });
 
   test("with Guesses it counts as a loss", () => {

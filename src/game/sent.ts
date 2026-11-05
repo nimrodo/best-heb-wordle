@@ -43,3 +43,17 @@ export function checkSendWord(input: string, words: ReadonlySet<string>): SendCh
   const word = letters.join("");
   return words.has(word) ? { ok: true, word } : { ok: false, message: TOAST_NOT_IN_LIST };
 }
+
+// Names one link, so opening it again (a reload, a second tab, a repeat tap) counts once.
+// Random, not derived from the word: two links to the same word are two Puzzles.
+export function newLinkId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(9));
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_");
+}
+
+// null for a link made before ids existed, or anything newLinkId could not have made.
+export function decodeLinkId(raw: string | null): string | null {
+  return raw !== null && /^[A-Za-z0-9_-]{8,32}$/.test(raw) ? raw : null;
+}
