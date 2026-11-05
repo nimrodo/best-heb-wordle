@@ -1,5 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { currentStats, drawFromStorage, type EndResult, emptyStore, KEY, loadStore, type Store, saveStore } from "./persistence";
+import {
+  currentStats,
+  drawFromStorage,
+  type EndResult,
+  emptyStore,
+  KEY,
+  loadStore,
+  type Store,
+  saveStore,
+} from "./persistence";
 import { emptyStats, recordWin } from "./stats";
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {
@@ -189,7 +198,12 @@ describe("tabs sharing played and results", () => {
   });
 
   test("a draw still works when nothing can be read from storage", () => {
-    const broken = { getItem: () => null, setItem: () => { throw new Error("full"); } } as unknown as Storage;
+    const broken = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("full");
+      },
+    } as unknown as Storage;
 
     const drawn = drawFromStorage(broken, emptyStore(), pool, first);
 

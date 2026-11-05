@@ -61,7 +61,8 @@ function isStore(value: unknown): value is Store {
     v?.version === VERSION &&
     Array.isArray(v.played) &&
     v.played.every((w: unknown) => typeof w === "string") &&
-    (v.recorded === undefined || (Array.isArray(v.recorded) && v.recorded.every((w: unknown) => typeof w === "string"))) &&
+    (v.recorded === undefined ||
+      (Array.isArray(v.recorded) && v.recorded.every((w: unknown) => typeof w === "string"))) &&
     (v.puzzle === null || isSavedPuzzle(v.puzzle)) &&
     isStats(v.stats) &&
     typeof v.seenHowToPlay === "boolean"
