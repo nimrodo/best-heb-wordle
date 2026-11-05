@@ -35,7 +35,8 @@ const isWord = (v: unknown, max = WORD_LENGTH): v is string =>
   typeof v === "string" && v.length <= max && /^[א-ת]*$/.test(v);
 const isFullWord = (v: unknown): v is string => isWord(v) && v.length === WORD_LENGTH;
 
-function isSavedPuzzle(v: any): v is SavedPuzzle {
+function isSavedPuzzle(value: unknown): value is SavedPuzzle {
+  const v = value as Partial<Record<keyof SavedPuzzle, unknown>> | null | undefined;
   return (
     isFullWord(v?.solution) &&
     typeof v.hard === "boolean" &&
@@ -47,7 +48,8 @@ function isSavedPuzzle(v: any): v is SavedPuzzle {
   );
 }
 
-function isStore(v: any): v is Store {
+function isStore(value: unknown): value is Store {
+  const v = value as Partial<Record<keyof Store, unknown>> | null | undefined;
   return (
     v?.version === VERSION &&
     Array.isArray(v.played) &&
