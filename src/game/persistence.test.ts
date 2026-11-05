@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { emptyStats } from "./stats";
+import { emptyStats, recordWin } from "./stats";
 import { KEY, emptyStore, loadStore, saveStore, type Store } from "./persistence";
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {
@@ -84,5 +84,38 @@ describe("store", () => {
     } as unknown as Storage;
     expect(loadStore(broken)).toEqual(emptyStore());
     expect(() => saveStore(broken, store)).not.toThrow();
+  });
+});
+
+describe("saving stats across tabs", () => {
+  const withWins = (wins: number[]): Store => ({ ...store, stats: { ...emptyStats(), wins } });
+
+  test("a result is added to the stats another tab saved meanwhile", () => {
+    const storage = memoryStorage();
+    saveStore(storage, withWins([1, 0, 0, 0, 0, 0]));
+    // This tab still holds the stale copy; another tab then records a win in two Guesses.
+    const stale = loadStore(storage);
+    saveStore(storage, stale, (stats) => recordWin(stats, 2, false));
+
+    const saved = saveStore(storage, stale, (stats) => recordWin(stats, 3, false));
+
+    expect(saved.stats.wins).toEqual([1, 1, 1, 0, 0, 0]);
+    expect(loadStore(storage).stats).toEqual(saved.stats);
+  });
+
+  test("a save without a result keeps the stats another tab saved", () => {
+    const storage = memoryStorage();
+    const stale = withWins([0, 0, 0, 0, 0, 0]);
+    saveStore(storage, withWins([0, 0, 5, 0, 0, 0]));
+
+    expect(saveStore(storage, stale).stats.wins).toEqual([0, 0, 5, 0, 0, 0]);
+  });
+
+  test("with nothing readable in storage, the tab's own stats carry on", () => {
+    const failing = { ...memoryStorage(), setItem: () => { throw new Error("quota"); } } as Storage;
+
+    const saved = saveStore(failing, withWins([0, 2, 0, 0, 0, 0]), (stats) => recordWin(stats, 1, false));
+
+    expect(saved.stats.wins).toEqual([1, 2, 0, 0, 0, 0]);
   });
 });

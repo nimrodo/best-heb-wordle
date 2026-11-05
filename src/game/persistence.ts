@@ -58,20 +58,27 @@ function isStore(v: any): v is Store {
   );
 }
 
-// Anything unreadable (no storage, corrupt JSON, other version) quietly starts fresh.
-export function loadStore(storage: Storage): Store {
+function readStore(storage: Storage): Store | null {
   try {
     const parsed: unknown = JSON.parse(storage.getItem(KEY) ?? "null");
-    return isStore(parsed) ? parsed : emptyStore();
+    return isStore(parsed) ? parsed : null;
   } catch {
-    return emptyStore();
+    return null;
   }
 }
 
-export function saveStore(storage: Storage, store: Store): void {
+// Anything unreadable (no storage, corrupt JSON, other version) quietly starts fresh.
+export const loadStore = (storage: Storage): Store => readStore(storage) ?? emptyStore();
+
+// Stats are shared by every open tab, so they are read and written back in one synchronous step
+// (the smallest window for another tab to slip in), with this tab's result applied on top.
+// `endResult` is that result; without one, the stored stats are kept as they are.
+export function saveStore(storage: Storage, store: Store, endResult: (stats: Stats) => Stats = (s) => s): Store {
+  const saved = { ...store, stats: endResult(readStore(storage)?.stats ?? store.stats) };
   try {
-    storage.setItem(KEY, JSON.stringify(store));
+    storage.setItem(KEY, JSON.stringify(saved));
   } catch {
     // Private mode or a full quota: the game still plays, it just won't be remembered.
   }
+  return saved;
 }
