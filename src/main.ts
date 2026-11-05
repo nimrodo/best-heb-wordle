@@ -8,7 +8,7 @@ import { canShare, render, revealDuration, showHeart, showToast, type EndView, t
 import { checkSendWord, decodeWord, encodeWord } from "./game/sent";
 import { drawUnplayed, type SolutionEntry } from "./game/draw";
 import { loadStore, saveStore } from "./game/persistence";
-import { recordLoss, recordWin } from "./game/stats";
+import { recordLoss, recordWin, type Stats } from "./game/stats";
 import { loadDefinitions, loadGuesses, loadSolutions } from "./words";
 
 const root = document.querySelector<HTMLDivElement>("#app")!;
@@ -63,12 +63,15 @@ async function takeLink(): Promise<string | null | "bad"> {
 const incoming = await takeLink();
 let pendingSent: string | null = null;
 
+// A finished Puzzle's result waits here for the next persist(), which adds it to the freshly read stats.
+let endResult: ((stats: Stats) => Stats) | undefined;
+
 // The Puzzle in progress is saved after every change, so a reload restores it.
 function persist(): void {
   const { solution, hard, sent, guesses, current } = state;
   const puzzle = { solution, hard, sent, guesses: guesses.map((g) => g.word), current };
-  store = { ...store, puzzle };
-  saveStore(localStorage, store);
+  store = saveStore(localStorage, { ...store, puzzle }, endResult);
+  endResult = undefined;
 }
 
 const restored = store.puzzle ? restorePuzzle(store.puzzle, words, { loading }) : null;
@@ -104,8 +107,10 @@ function openEndSheet(): void {
 // Stats are saved with the next persist(), in the same write as the finished Puzzle.
 function recordEnd(): void {
   if (state.sent) return;
-  const stats = state.status === "won" ? recordWin(store.stats, state.guesses.length, state.hard) : recordLoss(store.stats, state.hard);
-  store = { ...store, stats };
+  // Copied now: the closure runs in persist(), by which time `state` may already be the next Puzzle.
+  const { status, hard } = state;
+  const guessesUsed = state.guesses.length;
+  endResult = (stats) => (status === "won" ? recordWin(stats, guessesUsed, hard) : recordLoss(stats, hard));
 }
 
 function startPuzzle(): void {
