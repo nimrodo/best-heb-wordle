@@ -2,7 +2,7 @@ import "@fontsource/rubik/hebrew-400.css";
 import "@fontsource/rubik/hebrew-600.css";
 import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
-import type { SolutionEntry } from "./game/draw";
+import { isHardSolution, type SolutionEntry } from "./game/draw";
 import {
   abandonOutcome,
   type GameEvent,
@@ -34,10 +34,11 @@ const newPuzzleId = (): string => `${Date.now().toString(36)}-${Math.random().to
 
 const guessesLoaded = loadGuesses();
 
-// A Sent Puzzle is neither drawn from the Solution list nor marked in the played pool.
+// A Sent Puzzle is neither drawn from the Solution list nor marked in the played pool;
+// the list is only read to tell whether its word is Hard.
 function sentPuzzle(word: string): GameState {
   puzzleId = newPuzzleId();
-  return newPuzzle(word, words, { loading, sent: true });
+  return newPuzzle(word, words, { hard: isHardSolution(word, solutions), loading, sent: true });
 }
 
 function randomPuzzle(): GameState {
