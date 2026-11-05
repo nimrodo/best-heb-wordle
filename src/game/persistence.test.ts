@@ -112,10 +112,25 @@ describe("saving stats across tabs", () => {
   });
 
   test("with nothing readable in storage, the tab's own stats carry on", () => {
-    const failing = { ...memoryStorage(), setItem: () => { throw new Error("quota"); } } as Storage;
+    const full = memoryStorage();
+    const failing: Storage = {
+      ...full,
+      setItem: () => {
+        throw new Error("quota");
+      },
+    };
 
     const saved = saveStore(failing, withWins([0, 2, 0, 0, 0, 0]), (stats) => recordWin(stats, 1, false));
 
     expect(saved.stats.wins).toEqual([1, 2, 0, 0, 0, 0]);
+  });
+
+  test("corrupt stored JSON is replaced, keeping the tab's own stats plus its result", () => {
+    const storage = memoryStorage({ [KEY]: "{not json" });
+
+    const saved = saveStore(storage, withWins([0, 2, 0, 0, 0, 0]), (stats) => recordWin(stats, 1, false));
+
+    expect(saved.stats.wins).toEqual([1, 2, 0, 0, 0, 0]);
+    expect(loadStore(storage).stats).toEqual(saved.stats);
   });
 });

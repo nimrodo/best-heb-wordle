@@ -107,6 +107,7 @@ function openEndSheet(): void {
 // Stats are saved with the next persist(), in the same write as the finished Puzzle.
 function recordEnd(): void {
   if (state.sent) return;
+  // Copied now: the closure runs in persist(), by which time `state` may already be the next Puzzle.
   const { status, hard } = state;
   const guessesUsed = state.guesses.length;
   endResult = (stats) => (status === "won" ? recordWin(stats, guessesUsed, hard) : recordLoss(stats, hard));

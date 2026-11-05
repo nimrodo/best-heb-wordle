@@ -68,7 +68,9 @@ function readStore(storage: Storage): Store | null {
 }
 
 // Anything unreadable (no storage, corrupt JSON, other version) quietly starts fresh.
-export const loadStore = (storage: Storage): Store => readStore(storage) ?? emptyStore();
+export function loadStore(storage: Storage): Store {
+  return readStore(storage) ?? emptyStore();
+}
 
 // Stats are shared by every open tab, so they are read and written back in one synchronous step
 // (the smallest window for another tab to slip in), with this tab's result applied on top.
