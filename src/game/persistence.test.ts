@@ -39,6 +39,19 @@ describe("store", () => {
     expect(loadStore(storage)).toEqual(store);
   });
 
+  test("a Sent Puzzle keeps its marker; a save without one loads as not sent", () => {
+    const sent = { ...store, puzzle: { ...store.puzzle!, sent: true } };
+    const storage = memoryStorage();
+    saveStore(storage, sent);
+    expect(loadStore(storage)).toEqual(sent);
+    expect(loadStore(memoryStorage({ [KEY]: JSON.stringify(store) })).puzzle).toEqual(store.puzzle);
+  });
+
+  test("a sent marker of the wrong type resets quietly", () => {
+    const bad = JSON.stringify({ ...store, puzzle: { ...store.puzzle, sent: "yes" } });
+    expect(loadStore(memoryStorage({ [KEY]: bad }))).toEqual(emptyStore());
+  });
+
   test("corrupt JSON resets quietly", () => {
     expect(loadStore(memoryStorage({ [KEY]: "{not json" }))).toEqual(emptyStore());
   });

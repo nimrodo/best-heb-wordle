@@ -4,7 +4,8 @@ import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
 import { abandonOutcome, isOpeningCombo, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game/game";
 import { eventFromKeyName, eventFromKeyboard } from "./game/keyboard";
-import { render, revealDuration, type EndView, showHeart, type Overlay } from "./ui";
+import { canShare, render, revealDuration, showHeart, showToast, type EndView, type Overlay } from "./ui";
+import { checkSendWord, decodeWord, encodeWord } from "./game/sent";
 import { drawUnplayed, type SolutionEntry } from "./game/draw";
 import { loadStore, saveStore } from "./game/persistence";
 import { recordLoss, recordWin } from "./game/stats";
@@ -19,21 +20,63 @@ let loading = true;
 
 let store = loadStore(localStorage);
 
+const guessesLoaded = loadGuesses();
+
+// A Sent Puzzle is neither drawn from the Solution list nor marked in the played pool.
+function sentPuzzle(word: string): GameState {
+  return newPuzzle(word, words, { loading, sent: true });
+}
+
 function randomPuzzle(): GameState {
   const { entry, played } = drawUnplayed(solutions, store.played, Math.random);
   store = { ...store, played };
   return newPuzzle(entry.word, words, { hard: entry.hard, loading });
 }
 
+const LINK_PARAM = "w";
+const TOAST_BAD_LINK = "הקישור אינו תקין, מתחילים חידה רגילה";
+const TOAST_COPIED = "הקישור הועתק";
+const TOAST_COPY_FAILED = "ההעתקה לא הצליחה";
+const SHARE_TEXT = "הכנתי לך חידה בוורדל";
+
+// A link is consumed on arrival: it leaves the address bar, so a reload does not replay it.
+// Its word is only trusted once it is checked against the full Guess list, so that is awaited.
+// Returns the sent word, null when there is no link, or "bad" when the link is unusable.
+async function takeLink(): Promise<string | null | "bad"> {
+  const url = new URL(location.href);
+  const payload = url.searchParams.get(LINK_PARAM);
+  if (payload === null) return null;
+  url.searchParams.delete(LINK_PARAM);
+  history.replaceState(null, "", url);
+  const word = decodeWord(payload);
+  if (word === null) return "bad";
+  try {
+    words = await guessesLoaded;
+    loading = false;
+  } catch (error) {
+    console.error("Failed to load the Guess list", error);
+    return "bad";
+  }
+  return words.has(word) ? word : "bad";
+}
+
+const incoming = await takeLink();
+let pendingSent: string | null = null;
+
 // The Puzzle in progress is saved after every change, so a reload restores it.
 function persist(): void {
-  const { solution, hard, guesses, current } = state;
-  const puzzle = { solution, hard, guesses: guesses.map((g) => g.word), current };
+  const { solution, hard, sent, guesses, current } = state;
+  const puzzle = { solution, hard, sent, guesses: guesses.map((g) => g.word), current };
   store = { ...store, puzzle };
   saveStore(localStorage, store);
 }
 
-let state: GameState = store.puzzle ? restorePuzzle(store.puzzle, words, { loading }) : randomPuzzle();
+const restored = store.puzzle ? restorePuzzle(store.puzzle, words, { loading }) : null;
+const sentWord = incoming && incoming !== "bad" ? incoming : null;
+// A link replaces a finished or missing Puzzle at once; one in progress waits for the abandon question.
+const askFirst = sentWord !== null && restored?.status === "playing";
+let state: GameState = askFirst || !sentWord ? (restored ?? randomPuzzle()) : sentPuzzle(sentWord);
+if (incoming === "bad") state = { ...state, toast: TOAST_BAD_LINK };
 // Input is ignored while a submitted Guess is being revealed.
 let revealing = false;
 
@@ -60,13 +103,15 @@ function openEndSheet(): void {
 
 // Stats are saved with the next persist(), in the same write as the finished Puzzle.
 function recordEnd(): void {
+  if (state.sent) return;
   const stats = state.status === "won" ? recordWin(store.stats, state.guesses.length, state.hard) : recordLoss(store.stats, state.hard);
   store = { ...store, stats };
 }
 
 function startPuzzle(): void {
   clearTimeout(sheetTimer);
-  state = randomPuzzle();
+  state = pendingSent ? sentPuzzle(pendingSent) : randomPuzzle();
+  pendingSent = null;
   view = freshView();
   persist();
   draw();
@@ -81,7 +126,7 @@ function dispatch(event: GameEvent): void {
   if (state.guesses.length > before.guesses.length) {
     revealing = true;
     // Show the board and keys as they were, with only the new row animating.
-    render(root, { ...state, keys: before.keys, status: before.status }, view, { onKey }, true);
+    render(root, { ...state, keys: before.keys, status: before.status }, view, { onKey, onSendWord: sendWord }, true);
     setTimeout(() => {
       revealing = false;
       draw();
@@ -96,6 +141,8 @@ function onKey(key: string): void {
   if (key === "new") askBeforeNewPuzzle();
   else if (key === "abandon") abandonPuzzle();
   else if (key === "dismiss") dismissEndSheet();
+  else if (key === "send" || key === "send-again") setOverlay({ kind: "send", input: "", error: null, link: null });
+  else if (key === "share") void shareLink();
   else if (key === "stats") setOverlay({ kind: "stats", stats: store.stats });
   else if (key === "how" || key === "about") setOverlay({ kind: key });
   else if (key === "close") setOverlay(null);
@@ -110,8 +157,32 @@ function askBeforeNewPuzzle(): void {
 
 // Closing the about sheet closes the whole help flow; "how" is the way back to the rules.
 function setOverlay(overlay: Overlay | null): void {
+  if (!overlay) pendingSent = null;
   view = { ...view, overlay };
   draw();
+}
+
+function sendWord(input: string): void {
+  const check = checkSendWord(input, words);
+  if (!check.ok) return setOverlay({ kind: "send", input, error: check.message, link: null });
+  const link = `${location.origin}${import.meta.env.BASE_URL}?${LINK_PARAM}=${encodeWord(check.word)}`;
+  setOverlay({ kind: "send", input, error: null, link });
+}
+
+async function shareLink(): Promise<void> {
+  if (view.overlay?.kind !== "send" || !view.overlay.link) return;
+  const { link } = view.overlay;
+  try {
+    if (canShare()) await navigator.share({ text: SHARE_TEXT, url: link });
+    else {
+      await navigator.clipboard.writeText(link);
+      showToast(TOAST_COPIED);
+    }
+  } catch (error) {
+    // Closing the share sheet rejects with AbortError; that is not a failure.
+    if (error instanceof DOMException && error.name === "AbortError") return;
+    showToast(TOAST_COPY_FAILED);
+  }
 }
 
 function abandonPuzzle(): void {
@@ -125,7 +196,7 @@ function dismissEndSheet(): void {
 }
 
 function draw(): void {
-  render(root, state, view, { onKey });
+  render(root, state, view, { onKey, onSendWord: sendWord });
 }
 
 window.addEventListener("keydown", (e) => {
@@ -133,6 +204,8 @@ window.addEventListener("keydown", (e) => {
     if (view.overlay) return setOverlay(null);
     if (view.sheet === "open") return dismissEndSheet();
   }
+  // Typing in the send sheet's word field is not Puzzle input.
+  if (e.target instanceof HTMLInputElement) return;
   const event = eventFromKeyboard(e);
   if (!event) return;
   e.preventDefault();
@@ -145,12 +218,17 @@ if (!store.seenHowToPlay) {
   store = { ...store, seenHowToPlay: true };
 }
 persist();
+// A link opened over a Puzzle in progress asks before replacing it.
+if (askFirst) {
+  pendingSent = sentWord;
+  view = { ...view, overlay: { kind: "confirm" } };
+}
 // A restored Puzzle that had already ended shows its sheet at once.
 if (state.status === "playing") draw();
 else openEndSheet();
 
 // Play starts at once; the Guess list swaps into the running Puzzle when it arrives.
-loadGuesses().then(
+guessesLoaded.then(
   (guesses) => {
     words = guesses;
     loading = false;

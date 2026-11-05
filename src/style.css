@@ -160,3 +160,11 @@ button { color: inherit; border: 0; cursor: pointer; }
 .sheet.help .new-puzzle { font-size: 20px; padding: 11px; }
 .credits { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 16px; }
 .sheet a { color: var(--mint); }
+.send-form { display: grid; gap: 12px; justify-items: center; width: 100%; }
+.send-input {
+  font: inherit; font-size: 22px; width: 100%; padding: 12px; border-radius: 16px; text-align: center;
+  background: #1b1749; color: inherit; border: 2px solid #342d78;
+}
+.send-input.link-field { font-size: 14px; }
+.send-error { min-height: 1.4em; color: var(--pink); font-size: 15px; }
+.new-puzzle:disabled { opacity: 0.5; box-shadow: none; cursor: default; }

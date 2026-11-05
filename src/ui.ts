@@ -1,5 +1,6 @@
 import {
   MAX_GUESSES,
+  TOAST_LOADING,
   TOAST_TOO_SHORT,
   WORD_LENGTH,
   displayLetter,
@@ -11,15 +12,21 @@ import { resultCopy } from "./game/result";
 import { hardLine, summarise, type Stats } from "./game/stats";
 import { reportUrl } from "./report";
 
-export type Handlers = { onKey: (key: string) => void };
+export type Handlers = { onKey: (key: string) => void; onSendWord: (input: string) => void };
 
 // The end sheet: "pending" while the last tile settles, "open", then "dismissed" (the board
 // stays visible and a new-Puzzle button replaces the keyboard). The Meaning is null when the
 // Solution has none, or until definitions.json arrives.
 // `overlay` is the one sheet open over the board and end sheet, if any: the abandon-Puzzle
 // question over a Puzzle in progress, the stats snapshot, or the how-to-play sheet and the
-// about sheet reached from it.
-export type Overlay = { kind: "confirm" } | { kind: "stats"; stats: Stats } | { kind: "how" } | { kind: "about" };
+// about sheet reached from it, and the send-a-word sheet: a word form, then (once the word
+// passed) the link to share. `input` and `error` keep a rejected word on screen.
+export type Overlay =
+  | { kind: "confirm" }
+  | { kind: "stats"; stats: Stats }
+  | { kind: "how" }
+  | { kind: "about" }
+  | { kind: "send"; input: string; error: string | null; link: string | null };
 export type EndView = {
   sheet: "pending" | "open" | "dismissed";
   meaning: string | null;
@@ -143,6 +150,32 @@ function abandonDialog(): string {
   );
 }
 
+// Whether the share sheet exists here; otherwise the button copies the link.
+export const canShare = () => typeof navigator.share === "function";
+
+function sendSheet({ input, error, link }: Extract<Overlay, { kind: "send" }>, loading: boolean): string {
+  const title = { id: "send-title", title: "שליחת מילה", dismiss: "close" };
+  if (link) {
+    return sheet(
+      title,
+      `<p class="sheet-sub">הקישור מוכן. מי שיפתח אותו יקבל חידה עם המילה שנבחרה.</p>
+      <input class="send-input link-field" type="text" readonly dir="ltr" value="${escapeHtml(link)}" aria-label="הקישור" />
+      <button class="new-puzzle" data-key="share">${canShare() ? "שיתוף" : "העתקת הקישור"}</button>
+      <button class="secondary" data-key="send-again">מילה אחרת</button>`,
+    );
+  }
+  const message = loading ? TOAST_LOADING : error;
+  return sheet(
+    title,
+    `<form class="send-form">
+        <p class="sheet-sub">מילה בת חמש אותיות, והקישור מוכן לשליחה.</p>
+        <input class="send-input" type="text" name="word" value="${escapeHtml(input)}" lang="he" dir="rtl" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="המילה לשליחה" ${loading ? "disabled" : ""} />
+        <p class="send-error" role="alert">${message ?? ""}</p>
+        <button class="new-puzzle" type="submit" ${loading ? "disabled" : ""}>יצירת קישור</button>
+      </form>`,
+  );
+}
+
 function statsSheet(stats: Stats): string {
   const sum = summarise(stats);
   const tile = (value: number | string, label: string) =>
@@ -242,7 +275,7 @@ export function showHeart(): void {
 
 // The toast is a live region that outlives re-renders (it sits outside the app root), so
 // screen readers announce each new message instead of seeing a fresh element every time.
-function showToast(message: string | null): void {
+export function showToast(message: string | null): void {
   const toast = document.getElementById("toast")!;
   toast.classList.remove("show");
   toast.textContent = message ?? "";
@@ -259,7 +292,7 @@ function announceResult(message: string): void {
   if (region.textContent !== message) region.textContent = message;
 }
 
-function overlayHtml(overlay: Overlay): string {
+function overlayHtml(overlay: Overlay, loading: boolean): string {
   switch (overlay.kind) {
     case "confirm":
       return abandonDialog();
@@ -269,6 +302,8 @@ function overlayHtml(overlay: Overlay): string {
       return howToPlaySheet();
     case "about":
       return aboutSheet();
+    case "send":
+      return sendSheet(overlay, loading);
   }
 }
 
@@ -282,6 +317,8 @@ function focusSelector(overlay: Overlay | null): string {
     case "how":
     case "about":
       return ".sheet .new-puzzle, .sheet .secondary";
+    case "send":
+      return ".sheet input:not([disabled]), .sheet .sheet-close";
     default:
       return ".sheet .new-puzzle";
   }
@@ -298,15 +335,20 @@ export function render(
 ): void {
   const spent = state.guesses.length - (revealing ? 1 : 0);
   root.innerHTML = `
-    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1><div class="header-end"><button class="icon" data-key="how" aria-label="איך משחקים"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a2.9 2.9 0 1 1 4.2 2.6c-.9.5-1.4 1-1.4 2"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg></button><button class="icon" data-key="stats" aria-label="סטטיסטיקה"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="17" rx="1"/><rect x="17" y="9" width="4" height="12" rx="1"/></svg></button>${state.status === "playing" ? '<button class="icon" data-key="new" aria-label="חידה חדשה"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/></svg></button>' : ""}</div></header>
+    <header><div class="lives" aria-hidden="true">${lives(spent)}</div><h1>וורדל</h1><div class="header-end"><button class="icon" data-key="how" aria-label="איך משחקים"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a2.9 2.9 0 1 1 4.2 2.6c-.9.5-1.4 1-1.4 2"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg></button><button class="icon" data-key="send" aria-label="שליחת מילה"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5z"/></svg></button><button class="icon" data-key="stats" aria-label="סטטיסטיקה"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="17" rx="1"/><rect x="17" y="9" width="4" height="12" rx="1"/></svg></button>${state.status === "playing" ? '<button class="icon" data-key="new" aria-label="חידה חדשה"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/></svg></button>' : ""}</div></header>
     <div class="hard-slot">${state.hard ? '<span class="hard-badge">מילה קשה</span>' : ""}</div>
     <div class="board">${board(state, revealing)}</div>
     ${view.sheet === "dismissed" ? '<button class="new-puzzle bar" data-key="new">חידה חדשה</button>' : `<div class="keyboard">${keyboard(state)}</div>`}
-    ${view.overlay ? overlayHtml(view.overlay) : view.sheet === "open" ? endSheet(state, view.meaning) : ""}`;
+    ${view.overlay ? overlayHtml(view.overlay, state.loading) : view.sheet === "open" ? endSheet(state, view.meaning) : ""}`;
   showToast(state.toast);
   announceResult(announcement(state));
   if (revealing) startReveal(root);
   root.querySelector<HTMLElement>(focusSelector(view.overlay))?.focus();
+  const form = root.querySelector<HTMLFormElement>("form.send-form");
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    handlers.onSendWord(form.querySelector("input")!.value);
+  });
   root.querySelectorAll<HTMLButtonElement>("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
       handlers.onKey(button.dataset.key!);

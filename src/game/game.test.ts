@@ -183,7 +183,22 @@ describe("restorePuzzle", () => {
   });
 });
 
+describe("restorePuzzle: sent marker", () => {
+  const words = new Set(["שלומי", "אבגדה"]);
+  const saved = { solution: "שלומי", hard: false, guesses: ["אבגדה"], current: "" };
+
+  test("a Sent Puzzle is restored as sent, and an old save as not sent", () => {
+    expect(restorePuzzle({ ...saved, sent: true }, words).sent).toBe(true);
+    expect(restorePuzzle(saved, words).sent).toBe(false);
+  });
+});
+
 describe("abandoning a Puzzle", () => {
+  test("a Sent Puzzle with Guesses counts as nothing", () => {
+    const sent = { ...submit(newPuzzle("שולחנ", new Set(["מחברת"]), { sent: true }), "מחברת") };
+    expect(abandonOutcome(sent)).toBeNull();
+  });
+
   test("with Guesses it counts as a loss", () => {
     expect(abandonOutcome(submit(fresh(), "מחברת"))).toBe("lost");
   });
