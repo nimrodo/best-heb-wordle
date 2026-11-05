@@ -3,9 +3,11 @@ import { TOAST_NOT_IN_LIST, TOAST_TOO_SHORT } from "./game";
 import {
   checkSendWord,
   decodeLinkId,
+  countsTowardStats,
   decodeWord,
   encodeWord,
   newLinkId,
+  OLD_LINK_ID_PREFIX,
   TOAST_BAD_CHARACTER,
   TOAST_TOO_LONG,
 } from "./sent";
@@ -95,8 +97,19 @@ describe("link id", () => {
     expect(decodeLinkId(id)).toBe(id);
   });
 
-  // Links sent before ids existed have none and must still open; they just count each time.
+  // Links sent before ids existed have none and must still open; they just never count.
   test.each([null, "", "has space", "a/b", "x".repeat(33)])("a missing or unusable id %j reads as null", (raw) => {
     expect(decodeLinkId(raw)).toBeNull();
+  });
+});
+
+describe("which Puzzles count", () => {
+  test("a random Puzzle and a link with an id count", () => {
+    expect(countsTowardStats("lq3x-abc")).toBe(true);
+    expect(countsTowardStats("link-AbCd1234")).toBe(true);
+  });
+
+  test("a Puzzle from a link without an id does not", () => {
+    expect(countsTowardStats(`${OLD_LINK_ID_PREFIX}lq3x-abc`)).toBe(false);
   });
 });

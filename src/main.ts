@@ -14,7 +14,15 @@ import {
 } from "./game/game";
 import { eventFromKeyboard, eventFromKeyName } from "./game/keyboard";
 import { currentStats, drawFromStorage, type EndResult, loadStore, saveStore } from "./game/persistence";
-import { checkSendWord, decodeLinkId, decodeWord, encodeWord, newLinkId } from "./game/sent";
+import {
+  checkSendWord,
+  countsTowardStats,
+  decodeLinkId,
+  decodeWord,
+  encodeWord,
+  newLinkId,
+  OLD_LINK_ID_PREFIX,
+} from "./game/sent";
 import { recordLoss, recordWin } from "./game/stats";
 import { canShare, type EndView, type Overlay, render, revealDuration, showHeart, showToast } from "./ui";
 import { loadDefinitions, loadGuesses, loadSolutions } from "./words";
@@ -38,9 +46,9 @@ type SentLink = { word: string; linkId: string | null };
 
 // A Sent Puzzle is neither drawn from the Solution list nor marked in the played pool;
 // the list is only read to tell whether its word is Hard.
-// A link with an id counts once however often it is opened; one without (sent before ids) counts each time.
+// A link with an id counts once however often it is opened; one without (sent before ids) never counts.
 function sentPuzzle({ word, linkId }: SentLink): GameState {
-  puzzleId = linkId === null ? newPuzzleId() : `link-${linkId}`;
+  puzzleId = linkId === null ? `${OLD_LINK_ID_PREFIX}${newPuzzleId()}` : `link-${linkId}`;
   return newPuzzle(word, words, { hard: isHardSolution(word, solutions), loading, sent: true });
 }
 
@@ -130,6 +138,7 @@ function openEndSheet(): void {
 
 // Stats are saved with the next persist(), in the same write as the finished Puzzle.
 function recordEnd(): void {
+  if (!countsTowardStats(puzzleId)) return;
   // Copied now: the closure runs in persist(), by which time `state` may already be the next Puzzle.
   const { status, hard } = state;
   const guessesUsed = state.guesses.length;

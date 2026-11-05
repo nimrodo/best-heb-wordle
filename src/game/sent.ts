@@ -57,3 +57,11 @@ export function newLinkId(): string {
 export function decodeLinkId(raw: string | null): string | null {
   return raw !== null && /^[A-Za-z0-9_-]{8,32}$/.test(raw) ? raw : null;
 }
+
+// A link made before ids existed cannot be told from its twin, so its Puzzle gets an id with this
+// prefix and never counts. The id is stored with the Puzzle, so a reload keeps the rule.
+export const OLD_LINK_ID_PREFIX = "old-link-";
+
+export function countsTowardStats(puzzleId: string): boolean {
+  return !puzzleId.startsWith(OLD_LINK_ID_PREFIX);
+}
