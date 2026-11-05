@@ -1,11 +1,11 @@
-# Proper nouns and vulgar words that must never be Solutions.
+# Words that must never be Solutions: vulgar words, family names, brands and
+# media, and names that are not a place or a first name. Place names (Israeli and
+# foreign cities) and first names are allowed, so reviewed ones are not listed.
 # One word per line; final letters may be written either way. Hand-edited.
 # Seeded from a skim of the Common words (1,000+ hits); the Hard words are
 # not yet skimmed, so extend this list as names and slang turn up.
 
 # Proper nouns
-אברהם
-אהרון
 אוסקר
 אלברט
 אריקה
@@ -13,9 +13,7 @@
 בארני
 ברברה
 ברונו
-ברלין
 דייגו
-דניאל
 הולמס
 היטלר
 הרולד
@@ -23,10 +21,6 @@
 מלאני
 מליסה
 מריסה
-מנהטן
-סיאטל
-סידני
-שיקגו
 שירלי
 שרלוק
 שלדון
@@ -136,3 +130,14 @@
 
 # Vulgar (found while reviewing issue #67)
 זיוני
+
+# Not valid Solutions (found while screening CC-100 words, issue #68)
+בגינו
+שלשות
+עתירי
+דרורי
+
+# Not family-game words (found while screening CC-100 words, issue #68)
+קנביס
+פרומו
+פאבימ

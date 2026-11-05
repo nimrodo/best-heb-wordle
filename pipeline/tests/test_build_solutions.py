@@ -29,6 +29,9 @@ def build(
     lemma_commonness: dict[str, float] | None = None,
     extra_hard: str = "",
     construct: str = "",
+    cc100: dict[str, int] | None = None,
+    cc100_min_hits: int | None = None,
+    screening: dict[str, float] | None = None,
 ) -> list[Solution]:
     dic = f"{len(dic_words)}\n" + "\n".join(dic_words) + "\n"
     flagged = set(prefix_attached)
@@ -43,6 +46,9 @@ def build(
         lemma_commonness=lemma_commonness,
         extra_hard=extra_hard,
         construct=construct,
+        cc100=cc100,
+        screening=screening,
+        **({} if cc100_min_hits is None else {"cc100_min_hits": cc100_min_hits}),
         **(
             {}
             if commonness_min_prob is None
@@ -329,4 +335,96 @@ def test_construct_list_ignores_comments_and_final_letters() -> None:
 def test_construct_form_is_dropped_from_the_hand_checked_hard_words_too() -> None:
     assert build([], [], extra_hard="זריחת\nאבגדה\n", construct="זריחת") == [
         Solution("אבגדה", hard=True)
+    ]
+
+
+# CC-100 admission: a web-text count can admit a word the subtitles under-count.
+# Words admitted only by CC-100 are screened first (a family word game).
+
+PLACE = "אבגדה"
+SCREENED = {PLACE: 0.99}
+
+
+def test_cc100_at_the_threshold_admits_a_hard_word() -> None:
+    result = build([PLACE], [], cc100={PLACE: 5000}, screening=SCREENED)
+    assert result == [Solution(PLACE, hard=True)]
+
+
+def test_cc100_just_below_the_threshold_does_not_admit() -> None:
+    assert build([PLACE], [], cc100={PLACE: 4999}, screening=SCREENED) == []
+
+
+def test_cc100_threshold_is_configurable() -> None:
+    result = build(
+        [PLACE], [], cc100={PLACE: 1000}, cc100_min_hits=1000, screening=SCREENED
+    )
+    assert words(result) == [PLACE]
+
+
+def test_word_without_a_cc100_entry_is_judged_on_subtitle_hits_alone() -> None:
+    assert build([PLACE], [f"{PLACE} 99"], cc100={}, screening=SCREENED) == []
+    assert words(build([PLACE], [f"{PLACE} 100"], cc100={}, screening=SCREENED)) == [
+        PLACE
+    ]
+
+
+def test_cc100_word_below_the_screening_bar_is_not_admitted() -> None:
+    assert build([PLACE], [], cc100={PLACE: 9000}, screening={PLACE: 0.01}) == []
+
+
+def test_cc100_word_without_a_screening_score_is_not_admitted() -> None:
+    assert build([PLACE], [], cc100={PLACE: 9000}, screening={}) == []
+    assert build([PLACE], [], cc100={PLACE: 9000}) == []
+
+
+def test_cc100_admission_does_not_bypass_the_blocklist() -> None:
+    result = build(
+        [PLACE], [], blocklist=PLACE, cc100={PLACE: 9000}, screening=SCREENED
+    )
+    assert result == []
+
+
+def test_cc100_admission_does_not_bypass_the_construct_filter() -> None:
+    result = build(
+        [PLACE], [], construct=PLACE, cc100={PLACE: 9000}, screening=SCREENED
+    )
+    assert result == []
+
+
+def test_cc100_admission_does_not_bypass_the_prefix_detector() -> None:
+    result = build(
+        [PLACE], [], prefix_attached=[PLACE], cc100={PLACE: 9000}, screening=SCREENED
+    )
+    assert result == []
+
+
+def test_cc100_admission_does_not_bypass_the_variant_length_rule() -> None:
+    result = build(
+        [PLACE],
+        ["אבוגדה 500"],  # a 6-letter spelling variant with 100+ hits
+        cc100={PLACE: 9000},
+        screening=SCREENED,
+    )
+    assert result == []
+
+
+def test_cc100_word_can_be_promoted_to_common_by_the_model() -> None:
+    result = build(
+        [PLACE],
+        [],
+        cc100={PLACE: 9000},
+        screening=SCREENED,
+        commonness={PLACE: 0.95},
+    )
+    assert result == [Solution(PLACE, hard=False, promoted=True)]
+
+
+def test_word_already_a_solution_keeps_its_flag() -> None:
+    corpus = [f"{PLACE} 500"]
+    assert build([PLACE], corpus, cc100={PLACE: 9000}, screening=SCREENED) == [
+        Solution(PLACE, hard=False)
+    ]
+    corpus = [f"{PLACE} 360"]
+    assert build([PLACE], corpus, cc100={PLACE: 9000}, screening=SCREENED) == [
+        Solution(PLACE, hard=True)
     ]

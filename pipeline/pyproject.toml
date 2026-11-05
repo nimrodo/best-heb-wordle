@@ -10,6 +10,7 @@ dependencies = []
 wordlists = "wordlists:main"
 wordlists-solutions = "wordlists.solutions:main"
 wordlists-commonness = "wordlists.commonness:main"
+wordlists-screening = "wordlists.screening:main"
 wordlists-construct = "wordlists.construct:main"
 wordlists-definitions = "wordlists.definitions:main"
 

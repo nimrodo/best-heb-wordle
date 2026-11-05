@@ -11,13 +11,16 @@ import urllib.request
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
+from wordlists.cc100 import cc100_admitted, cc100_pool
 from wordlists.guesses import BASE_TO_FINAL, corpus_counts
 from wordlists.lemmas import build_index, lemma_of
 from wordlists.solutions import (
     COMMON_MIN_HITS,
     DEFAULT_LEMMA_COMMONNESS,
+    add_admission_arguments,
     candidates,
     in_lemma_band,
+    load_admission_inputs,
 )
 
 MODEL = "nimble"
@@ -36,11 +39,17 @@ def restore_final_letters(word: str) -> str:
 
 
 def candidate_hard_words(
-    dic: str, aff: str, corpus: str, blocklist: str, common_min_hits: int
+    dic: str,
+    aff: str,
+    corpus: str,
+    blocklist: str,
+    common_min_hits: int,
+    admitted: set[str] | frozenset[str] = frozenset(),
 ) -> list[str]:
     """Candidates that would be Hard by hits alone. The prefix detector is skipped:
-    scoring a word that later proves Prefix-attached is harmless."""
-    words, counts = candidates(dic, aff, corpus, blocklist)
+    scoring a word that later proves Prefix-attached is harmless. `admitted` are
+    the screened CC-100 words, which are candidates whatever their subtitle hits."""
+    words, counts = candidates(dic, aff, corpus, blocklist, admitted)
     return [w for w in words if counts[w] < common_min_hits]
 
 
@@ -76,20 +85,44 @@ def commonness_json(scores: dict[str, float]) -> str:
     return json.dumps(scores, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
-def ask_nimble(word: str) -> float:
-    """Probability of "yes" from a Noul question, via Ollama's System One endpoint."""
-    body = json.dumps(
-        {
-            "model": MODEL,
-            "state": word,
-            "questions": {"everyday": {"type": "noul", "instructions": QUESTION}},
-        }
-    ).encode()
-    request = urllib.request.Request(
-        ENDPOINT, body, {"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
-        return json.load(response)["answers"]["everyday"]["noul"]
+def nimble_scorer(question: str) -> Scorer:
+    """A scorer for one Noul question, via Ollama's System One endpoint."""
+
+    def ask(word: str) -> float:
+        body = json.dumps(
+            {
+                "model": MODEL,
+                "state": word,
+                "questions": {"q": {"type": "noul", "instructions": question}},
+            }
+        ).encode()
+        request = urllib.request.Request(
+            ENDPOINT, body, {"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
+            return json.load(response)["answers"]["q"]["noul"]
+
+    return ask
+
+
+ask_nimble = nimble_scorer(QUESTION)
+
+
+def score_to_file(words: list[str], path: Path, scorer: Scorer) -> dict[str, float]:
+    """Score `words` into `path`, resuming from it and saving as it goes."""
+    existing = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+    def save(scores: dict[str, float]) -> None:
+        path.write_text(commonness_json(scores) + "\n", encoding="utf-8")
+
+    def report(scores: dict[str, float]) -> None:
+        if len(scores) % SAVE_EVERY == 0:
+            save(scores)
+            print(f"{len(scores)}/{len(words)}", flush=True)
+
+    scores = score_words(words, existing, scorer, report)
+    save(scores)
+    return scores
 
 
 def main() -> None:
@@ -106,6 +139,7 @@ def main() -> None:
         default=COMMON_MIN_HITS,
         help=f"hits from which a word is Common, so not scored (default {COMMON_MIN_HITS})",
     )
+    add_admission_arguments(parser)
     parser.add_argument(
         "--out",
         type=Path,
@@ -120,42 +154,22 @@ def main() -> None:
     )
     args = parser.parse_args()
     read = lambda path: path.read_text(encoding="utf-8")
+    cc100, screening = load_admission_inputs(parser, args)
+    admitted = cc100_admitted(
+        cc100_pool(cc100, args.cc100_min_hits), screening, args.screening_min_prob
+    )
     words = candidate_hard_words(
         read(args.dic),
         read(args.aff),
         read(args.corpus),
         read(args.blocklist),
         args.common_min_hits,
+        admitted,
     )
-    existing = json.loads(read(args.out)) if args.out.exists() else {}
-
-    def saver(path: Path) -> Callable[[dict[str, float]], None]:
-        return lambda scores: path.write_text(
-            commonness_json(scores) + "\n", encoding="utf-8"
-        )
-
-    def progress(save: Callable, total: int) -> Callable:
-        def report(scores: dict[str, float]) -> None:
-            if len(scores) % SAVE_EVERY == 0:
-                save(scores)
-                print(f"{len(scores)}/{total}", flush=True)
-
-        return report
-
-    save_words = saver(args.out)
-    scores = score_words(words, existing, ask_nimble, progress(save_words, len(words)))
-    save_words(scores)
+    scores = score_to_file(words, args.out, ask_nimble)
 
     # The lemma rule needs the lemmas of band words scored too.
     lemmas = band_lemmas(
         scores, read(args.dic), read(args.aff), corpus_counts(read(args.corpus))
     )
-    existing_lemmas = (
-        json.loads(read(args.lemma_out)) if args.lemma_out.exists() else {}
-    )
-    save_lemmas = saver(args.lemma_out)
-    save_lemmas(
-        score_words(
-            lemmas, existing_lemmas, ask_nimble, progress(save_lemmas, len(lemmas))
-        )
-    )
+    score_to_file(lemmas, args.lemma_out, ask_nimble)
