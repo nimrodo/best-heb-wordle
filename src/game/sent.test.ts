@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { TOAST_NOT_IN_LIST, TOAST_TOO_SHORT } from "./game";
-import { checkSendWord, decodeWord, encodeWord } from "./sent";
+import { TOAST_BAD_CHARACTER, TOAST_TOO_LONG, checkSendWord, decodeWord, encodeWord } from "./sent";
 
 const words = new Set(["שלום", "אשלגנ", "ולבית", "זריחת", "ספרימ"]);
 
@@ -47,5 +47,18 @@ describe("checkSendWord", () => {
 
   test("rejects a short word", () => {
     expect(checkSendWord("שלום", words)).toEqual({ ok: false, message: TOAST_TOO_SHORT });
+  });
+
+  test.each(["שלומי1", "שלו מי", "שלום!", "shalom", "שלום "])("rejects stray character in %j", (input) => {
+    expect(checkSendWord(input, words)).toEqual({ ok: false, message: TOAST_BAD_CHARACTER });
+  });
+
+  test("rejects a word longer than five letters", () => {
+    expect(checkSendWord("שלומיים", words)).toEqual({ ok: false, message: TOAST_TOO_LONG });
+  });
+
+  test("accepts a niqqud-marked word", () => {
+    expect(checkSendWord("שָׁלוֹם", words)).toEqual({ ok: false, message: TOAST_TOO_SHORT });
+    expect(checkSendWord("אַשְׁלָגָן", words)).toEqual({ ok: true, word: "אשלגנ" });
   });
 });

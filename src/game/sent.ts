@@ -25,12 +25,18 @@ export function decodeWord(payload: string): string | null {
   return /^[א-ת]+$/.test(word) ? word : null;
 }
 
+export const TOAST_BAD_CHARACTER = "המילה יכולה להכיל רק אותיות בעברית";
+export const TOAST_TOO_LONG = "יש יותר מדי אותיות";
+
 export type SendCheck = { ok: true; word: string } | { ok: false; message: string };
 
 // Any Guess list word may be sent, Prefix-attached and Construct forms included.
 export function checkSendWord(input: string, words: ReadonlySet<string>): SendCheck {
-  const letters = [...input].map(normalise).filter((l): l is string => l !== null);
-  if (letters.length !== WORD_LENGTH) return { ok: false, message: TOAST_TOO_SHORT };
+  // Niqqud and cantillation marks are dropped as normalise does; anything else must be a letter.
+  const letters = [...input.replace(/[\u0591-\u05C7]/g, "")].map(normalise);
+  if (letters.includes(null)) return { ok: false, message: TOAST_BAD_CHARACTER };
+  if (letters.length > WORD_LENGTH) return { ok: false, message: TOAST_TOO_LONG };
+  if (letters.length < WORD_LENGTH) return { ok: false, message: TOAST_TOO_SHORT };
   const word = letters.join("");
   return words.has(word) ? { ok: true, word } : { ok: false, message: TOAST_NOT_IN_LIST };
 }
