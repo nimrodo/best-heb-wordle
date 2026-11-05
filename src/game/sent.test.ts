@@ -2,8 +2,8 @@ import { describe, expect, test } from "vitest";
 import { TOAST_NOT_IN_LIST, TOAST_TOO_SHORT } from "./game";
 import {
   checkSendWord,
-  decodeLinkId,
   countsTowardStats,
+  decodeLinkId,
   decodeWord,
   encodeWord,
   newLinkId,
