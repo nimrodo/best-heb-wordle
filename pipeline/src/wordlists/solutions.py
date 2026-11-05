@@ -10,10 +10,17 @@ Hspell's morphology) is dropped last, whether Common, Hard or hand-checked.
 
 import argparse
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from wordlists.cc100 import (
+    CC100_MIN_HITS,
+    SCREENING_MIN_PROB,
+    cc100_admitted,
+    cc100_counts,
+    cc100_pool,
+)
 from wordlists.guesses import (
     VARIANT_MIN_HITS,
     WORD_LENGTH,
@@ -45,6 +52,7 @@ DEFAULT_COMMONNESS = Path("commonness.json")
 DEFAULT_LEMMA_COMMONNESS = Path("lemma_commonness.json")
 DEFAULT_EXTRA_HARD = Path("book_hard.txt")
 DEFAULT_CONSTRUCT = Path("construct_forms.txt")
+DEFAULT_SCREENING = Path("screening.json")
 
 PrefixDetector = Callable[[list[str]], set[str]]
 
@@ -114,9 +122,16 @@ def is_common(
 
 
 def candidates(
-    dic: str, aff: str, corpus: str, blocklist: str
+    dic: str,
+    aff: str,
+    corpus: str,
+    blocklist: str,
+    admitted: frozenset[str] | set[str] = frozenset(),
 ) -> tuple[list[str], dict[str, int]]:
     """Every form that clears all the cheap filters, and the hit counts.
+
+    A form under the subtitle cut-off is still a candidate if `admitted`
+    holds it (frequent in CC-100 and screened).
 
     The slow prefix detector is not applied here; it runs last in `build_solutions`.
     """
@@ -127,7 +142,7 @@ def candidates(
         form
         for form in bare | prefixed
         if len(form) == WORD_LENGTH
-        and counts[form] >= SOLUTION_MIN_HITS
+        and (counts[form] >= SOLUTION_MIN_HITS or form in admitted)
         and form not in blocked
         and not _built_by_prefix(form, bare, prefixed)
         and not _has_misleading_variant(form, counts)
@@ -146,6 +161,10 @@ def build_solutions(
     lemma_commonness: dict[str, float] | None = None,
     extra_hard: str = "",
     construct: str = "",
+    cc100: Mapping[str, int] | None = None,
+    cc100_min_hits: int = CC100_MIN_HITS,
+    screening: Mapping[str, float] | None = None,
+    screening_min_prob: float = SCREENING_MIN_PROB,
 ) -> list[Solution]:
     """Return the Solutions, sorted by word.
 
@@ -157,13 +176,20 @@ def build_solutions(
     list (see `book_hard.txt`): each word not already a Solution is added as a
     Hard word, whatever its hit count, and skips the filters above. `construct`
     is the Construct form list (see `construct_forms.txt`); its words are
-    dropped last, even from `extra_hard`.
+    dropped last, even from `extra_hard`. `cc100` maps a word to its CC-100 hits:
+    one with `cc100_min_hits` or more is also a candidate under the subtitle
+    cut-off, but only if `screening` (family-game probability) scores it at
+    `screening_min_prob` or more; an unscored word is not admitted. Such a word
+    is Hard unless the model promotes it, and meets every other filter.
     """
     construct_forms = parse_word_list(construct)
     commonness = commonness or {}
     lemma_commonness = lemma_commonness or {}
     index = build_index(dic, aff) if lemma_commonness else {}
-    words, counts = candidates(dic, aff, corpus, blocklist)
+    admitted = cc100_admitted(
+        cc100_pool(cc100 or {}, cc100_min_hits), screening or {}, screening_min_prob
+    )
+    words, counts = candidates(dic, aff, corpus, blocklist, admitted)
     attached = detect_prefix_attached(words)
     solutions = []
     for form in words:
@@ -223,6 +249,45 @@ def optional_scores(
     return None
 
 
+def add_admission_arguments(parser: argparse.ArgumentParser) -> None:
+    """The CC-100 options shared by the Solutions build and the commonness scorer."""
+    parser.add_argument(
+        "--cc100",
+        type=Path,
+        default=None,
+        help="CC-100 counts (word,count rows) that admit frequent words under the "
+        "subtitle cut-off; without it only subtitle hits count",
+    )
+    parser.add_argument(
+        "--cc100-min-hits",
+        type=int,
+        default=CC100_MIN_HITS,
+        help=f"CC-100 hits from which a word is admitted (default {CC100_MIN_HITS})",
+    )
+    parser.add_argument(
+        "--screening",
+        type=Path,
+        default=None,
+        help="screening.json from wordlists-screening; "
+        f"optional if absent (default {DEFAULT_SCREENING})",
+    )
+    parser.add_argument(
+        "--screening-min-prob",
+        type=float,
+        default=SCREENING_MIN_PROB,
+        help="screening probability from which a CC-100 word is admitted "
+        f"(default {SCREENING_MIN_PROB})",
+    )
+
+
+def load_admission_inputs(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> tuple[dict[str, int], dict[str, float]]:
+    """The CC-100 counts and screening scores named by the shared options."""
+    counts = cc100_counts(args.cc100.read_text(encoding="utf-8")) if args.cc100 else {}
+    return counts, optional_scores(parser, args.screening, DEFAULT_SCREENING) or {}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Build solutions.json from Hspell and OpenSubtitles data."
@@ -258,6 +323,7 @@ def main() -> None:
         help="lemma_commonness.json from wordlists-commonness; "
         f"optional if absent (default {DEFAULT_LEMMA_COMMONNESS})",
     )
+    add_admission_arguments(parser)
     parser.add_argument(
         "--construct",
         type=Path,
@@ -277,6 +343,7 @@ def main() -> None:
     lemma_commonness = optional_scores(
         parser, args.lemma_commonness, DEFAULT_LEMMA_COMMONNESS
     )
+    cc100, screening = load_admission_inputs(parser, args)
     # Imported here so the tests and `wordlists` need no torch install.
     from wordlists.prefix_detector import detect_prefix_attached
 
@@ -292,6 +359,10 @@ def main() -> None:
         lemma_commonness,
         read(args.extra_hard) if args.extra_hard.exists() else "",
         read(args.construct) if args.construct.exists() else "",
+        cc100,
+        args.cc100_min_hits,
+        screening,
+        args.screening_min_prob,
     )
     args.out.write_text(solutions_json(solutions), encoding="utf-8")
     print(pool_report(solutions))

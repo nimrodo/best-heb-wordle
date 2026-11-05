@@ -9,7 +9,7 @@ One round of the game: a hidden Solution and up to six Guesses to find it.
 _Avoid_: Game, round, level
 
 **Solution**:
-The hidden five-letter Hebrew word a player is trying to find. Never a Prefix-attached form or a Construct form.
+The hidden five-letter Hebrew word a player is trying to find. Never a Prefix-attached form or a Construct form. A proper noun is allowed only as a place name or a first name.
 _Avoid_: Answer, target word, secret word
 
 **Guess**:

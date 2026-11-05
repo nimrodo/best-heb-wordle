@@ -22,10 +22,11 @@ Words found only in the subtitle corpus are never accepted.
 | File | Source |
 |---|---|
 | `he_IL.dic`, `he_IL.aff` | [LibreOffice `he_IL`](https://github.com/LibreOffice/dictionaries/tree/master/he_IL), generated from Hspell 1.4 (AGPL-3.0) |
+| `cc100.csv` | [eyaler/hebrew_wordlists `cc100_intersect_with_fatverb.csv`](https://github.com/eyaler/hebrew_wordlists), CC-100 web-text counts over Hspell forms, `word,count` rows (AGPL-3.0, as Hspell) |
 | `he_full.txt` | [FrequencyWords `content/2018/he/he_full.txt`](https://github.com/hermitdave/FrequencyWords), OpenSubtitles2018 counts (CC BY-SA 4.0) |
 
 Keep downloaded inputs in `pipeline/data/` (git-ignored) so every session finds them in
-one place: `he_IL.dic`, `he_IL.aff`, `he_full.txt` and the Wiktionary dump
+one place: `he_IL.dic`, `he_IL.aff`, `he_full.txt`, `cc100.csv` and the Wiktionary dump
 (`hewiktionary-latest-pages-articles.xml.bz2`, see Meanings).
 
 ## Run
@@ -57,8 +58,10 @@ Solutions). A candidate is kept if:
 
 1. Its OpenSubtitles count (summed over final-letter forms) is 100 or more:
    500+ is a Common word, 100-499 a Hard word, under 100 is dropped. Inflected
-   forms count on their own.
-2. It is not in `blocklist.txt` (proper nouns, vulgar words; hand-edited).
+   forms count on their own. A word under 100 is still admitted, as a Hard word,
+   by the CC-100 rule below.
+2. It is not in `blocklist.txt` (vulgar words, family names, brands and media,
+   names that are not a place or first name; hand-edited).
 3. No vav/yod spelling variant of a *different length* has 100+ hits, so the
    player is never misled when counting tiles. Those words stay valid Guesses.
 4. It is not Prefix-attached by Hspell's own rules: a form built by a prefix
@@ -84,12 +87,54 @@ uv sync --extra detector
 uv run wordlists-solutions \
   --dic path/to/he_IL.dic --aff path/to/he_IL.aff \
   --corpus path/to/he_full.txt --blocklist blocklist.txt \
-  --common-min-hits 500 \
+  --cc100 data/cc100.csv --common-min-hits 500 \
   --out ../public/solutions.json
 ```
 
 `--common-min-hits` (default 500) sets where Common starts; the 100-hit floor
 is fixed.
+
+### CC-100 admission (`screening.json`)
+
+OpenSubtitles under-counts written vocabulary and place names (נתניה, תגיות,
+הלכות). A word with `--cc100-min-hits` (default 5,000) or more CC-100 hits,
+summed over final-letter forms, is admitted even under the 100-hit floor. It must
+still pass every other rule (blocklist, variant length, Prefix-attached, Construct
+form). It enters as a Hard word and the `nimble` promotion below applies to it
+unchanged; a word that is already a Solution by subtitle hits keeps its flag. (A
+`book_hard.txt` word with CC-100 hits is admitted this way too, so `nimble` can
+promote it.) A word with no CC-100
+entry is judged on subtitle hits alone, and without `--cc100` the build is as before.
+
+Place names (Israeli and foreign cities) and first names are allowed. Family names,
+brands and media and vulgar words stay in `blocklist.txt`.
+
+CC-100 is web text, so admitted words are screened first: `nimble` is asked "Is this
+Hebrew word vulgar, sexual, offensive, or a spam or adult-website term?" of every
+word CC-100 alone would admit, and `screening.json` stores 1 minus that probability
+(higher is safer), committed so the build never needs the model. (The question was
+first worded "appropriate for a family word game", but the model read that as
+"familiar" and rejected 924 of 930 words.) A word scoring under
+`--screening-min-prob` (default 0.05) is not admitted, and neither is a word with no
+score. The model reads labelled examples in the text it judges (`FINE_EXAMPLES` and
+`UNACCEPTABLE_EXAMPLES` in `screening.py`), which it takes better than examples in the
+question: rare valid words went from 0.2-0.5 to 0.8+. It still misses some vulgar words
+(זיונים, כוסית score 0.7-0.9), so the bar is set low, to catch only extreme scores. The real gate is skimming the
+lowest-scoring kept words and blocklisting rejects.
+the kept words. Run it (Ollama and `nimble`, as below), then add
+rejects to `blocklist.txt`:
+
+```sh
+uv run wordlists-screening \
+  --dic path/to/he_IL.dic --aff path/to/he_IL.aff \
+  --corpus path/to/he_full.txt --blocklist blocklist.txt --cc100 data/cc100.csv
+```
+
+The report lists the words under `--min-prob` (default 0.05; keep it equal to the
+build's `--screening-min-prob`) and a sample of the words above it.
+Scores are saved every 25 words and read first on a rerun, so it resumes.
+Run `wordlists-commonness` with the same `--cc100` option afterwards, so the admitted
+words are scored for promotion too.
 
 ### Common rule: hits or the `nimble` model
 
@@ -136,7 +181,7 @@ knows?", asked of the word with its final letters restored.
 ```sh
 uv run wordlists-commonness \
   --dic path/to/he_IL.dic --aff path/to/he_IL.aff \
-  --corpus path/to/he_full.txt --blocklist blocklist.txt
+  --corpus path/to/he_full.txt --blocklist blocklist.txt --cc100 data/cc100.csv
 ```
 
 It scores every candidate that is Hard by hits (it skips the slow prefix
