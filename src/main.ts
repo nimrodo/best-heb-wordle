@@ -14,7 +14,15 @@ import {
 } from "./game/game";
 import { eventFromKeyboard, eventFromKeyName } from "./game/keyboard";
 import { currentStats, drawFromStorage, type EndResult, loadStore, saveStore } from "./game/persistence";
-import { checkSendWord, decodeWord, encodeWord } from "./game/sent";
+import {
+  checkSendWord,
+  countsTowardStats,
+  decodeLinkId,
+  decodeWord,
+  encodeWord,
+  newLinkId,
+  OLD_LINK_ID_PREFIX,
+} from "./game/sent";
 import { recordLoss, recordWin } from "./game/stats";
 import { canShare, type EndView, type Overlay, render, revealDuration, showHeart, showToast } from "./ui";
 import { loadDefinitions, loadGuesses, loadSolutions } from "./words";
@@ -34,10 +42,13 @@ const newPuzzleId = (): string => `${Date.now().toString(36)}-${Math.random().to
 
 const guessesLoaded = loadGuesses();
 
+type SentLink = { word: string; linkId: string | null };
+
 // A Sent Puzzle is neither drawn from the Solution list nor marked in the played pool;
 // the list is only read to tell whether its word is Hard.
-function sentPuzzle(word: string): GameState {
-  puzzleId = newPuzzleId();
+// A link with an id counts once however often it is opened; one without (sent before ids) never counts.
+function sentPuzzle({ word, linkId }: SentLink): GameState {
+  puzzleId = linkId === null ? `${OLD_LINK_ID_PREFIX}${newPuzzleId()}` : `link-${linkId}`;
   return newPuzzle(word, words, { hard: isHardSolution(word, solutions), loading, sent: true });
 }
 
@@ -50,6 +61,7 @@ function randomPuzzle(): GameState {
 }
 
 const LINK_PARAM = "w";
+const LINK_ID_PARAM = "i";
 const TOAST_BAD_LINK = "הקישור אינו תקין, מתחילים חידה רגילה";
 const TOAST_COPIED = "הקישור הועתק";
 const TOAST_COPY_FAILED = "ההעתקה לא הצליחה";
@@ -57,12 +69,14 @@ const SHARE_TEXT = "הכנתי לך חידה בוורדל";
 
 // A link is consumed on arrival: it leaves the address bar, so a reload does not replay it.
 // Its word is only trusted once it is checked against the full Guess list, so that is awaited.
-// Returns the sent word, null when there is no link, or "bad" when the link is unusable.
-async function takeLink(): Promise<string | null | "bad"> {
+// Returns the sent link, null when there is no link, or "bad" when the link is unusable.
+async function takeLink(): Promise<SentLink | null | "bad"> {
   const url = new URL(location.href);
   const payload = url.searchParams.get(LINK_PARAM);
   if (payload === null) return null;
+  const linkId = decodeLinkId(url.searchParams.get(LINK_ID_PARAM));
   url.searchParams.delete(LINK_PARAM);
+  url.searchParams.delete(LINK_ID_PARAM);
   history.replaceState(null, "", url);
   const word = decodeWord(payload);
   if (word === null) return "bad";
@@ -73,11 +87,11 @@ async function takeLink(): Promise<string | null | "bad"> {
     console.error("Failed to load the Guess list", error);
     return "bad";
   }
-  return words.has(word) ? word : "bad";
+  return words.has(word) ? { word, linkId } : "bad";
 }
 
 const incoming = await takeLink();
-let pendingSent: string | null = null;
+let pendingSent: SentLink | null = null;
 
 // A finished Puzzle's result waits here for the next persist(), which adds it to the freshly read stats.
 let endResult: EndResult | undefined;
@@ -124,7 +138,7 @@ function openEndSheet(): void {
 
 // Stats are saved with the next persist(), in the same write as the finished Puzzle.
 function recordEnd(): void {
-  if (state.sent) return;
+  if (!countsTowardStats(puzzleId)) return;
   // Copied now: the closure runs in persist(), by which time `state` may already be the next Puzzle.
   const { status, hard } = state;
   const guessesUsed = state.guesses.length;
@@ -199,7 +213,7 @@ function sendWord(input: string): void {
     setOverlay({ kind: "send", input, error: check.message, link: null });
     return;
   }
-  const link = `${location.origin}${import.meta.env.BASE_URL}?${LINK_PARAM}=${encodeWord(check.word)}`;
+  const link = `${location.origin}${import.meta.env.BASE_URL}?${LINK_PARAM}=${encodeWord(check.word)}&${LINK_ID_PARAM}=${newLinkId()}`;
   setOverlay({ kind: "send", input, error: null, link });
 }
 

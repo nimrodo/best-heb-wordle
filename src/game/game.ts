@@ -100,9 +100,9 @@ export function restorePuzzle(
 }
 
 // What abandoning a Puzzle in progress counts as: a loss once any Guess was submitted
-// (a partly typed word does not count), otherwise nothing at all. A Sent Puzzle never counts.
+// (a partly typed word does not count), otherwise nothing at all.
 export function abandonOutcome(state: GameState): "lost" | null {
-  return state.status === "playing" && state.guesses.length > 0 && !state.sent ? "lost" : null;
+  return state.status === "playing" && state.guesses.length > 0 ? "lost" : null;
 }
 
 // Her usual opening: the surprise heart fires when exactly these three Guesses have been
