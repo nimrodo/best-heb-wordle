@@ -8,8 +8,12 @@ A Wordle-style word-guessing game in Hebrew, made for one player to enjoy as man
 One round of the game: a hidden Solution and up to six Guesses to find it.
 _Avoid_: Game, round, level
 
+**Sent Puzzle**:
+A Puzzle whose Solution was chosen by another player and delivered as a link. The word may be any word in the Guess list, so the rules below for Solutions do not apply to it. It is never a Hard word, is not drawn from the Solution list, and does not count toward Streak or stats, even when abandoned.
+_Avoid_: Shared game, challenge, custom word
+
 **Solution**:
-The hidden five-letter Hebrew word a player is trying to find. Never a Prefix-attached form or a Construct form. A proper noun is allowed only as a place name or a first name.
+The hidden five-letter Hebrew word a player is trying to find. Never a Prefix-attached form or a Construct form, except in a Sent Puzzle. A proper noun is allowed only as a place name or a first name.
 _Avoid_: Answer, target word, secret word
 
 **Guess**:
