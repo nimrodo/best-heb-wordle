@@ -177,7 +177,10 @@ function setOverlay(overlay: Overlay | null): void {
 
 function sendWord(input: string): void {
   const check = checkSendWord(input, words);
-  if (!check.ok) return setOverlay({ kind: "send", input, error: check.message, link: null });
+  if (!check.ok) {
+    setOverlay({ kind: "send", input, error: check.message, link: null });
+    return;
+  }
   const link = `${location.origin}${import.meta.env.BASE_URL}?${LINK_PARAM}=${encodeWord(check.word)}`;
   setOverlay({ kind: "send", input, error: null, link });
 }
