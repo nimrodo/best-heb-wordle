@@ -5,7 +5,7 @@ A Wordle-style word-guessing game in Hebrew, made for one player to enjoy as man
 ## Language
 
 **Puzzle**:
-One round of the game: a hidden Solution and up to six Guesses to find it.
+One round of the game: a hidden Solution and up to six Guesses to find it. Its result counts once toward Streak and stats, even if it is open in several tabs and finished in more than one: the first finish stands.
 _Avoid_: Game, round, level
 
 **Sent Puzzle**:

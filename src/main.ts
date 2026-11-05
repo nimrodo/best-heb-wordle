@@ -2,7 +2,7 @@ import "@fontsource/rubik/hebrew-400.css";
 import "@fontsource/rubik/hebrew-600.css";
 import "@fontsource/rubik/hebrew-800.css";
 import "./style.css";
-import { drawUnplayed, type SolutionEntry } from "./game/draw";
+import type { SolutionEntry } from "./game/draw";
 import {
   abandonOutcome,
   type GameEvent,
@@ -13,9 +13,9 @@ import {
   restorePuzzle,
 } from "./game/game";
 import { eventFromKeyboard, eventFromKeyName } from "./game/keyboard";
-import { loadStore, saveStore } from "./game/persistence";
+import { currentStats, drawFromStorage, type EndResult, loadStore, saveStore } from "./game/persistence";
 import { checkSendWord, decodeWord, encodeWord } from "./game/sent";
-import { recordLoss, recordWin, type Stats } from "./game/stats";
+import { recordLoss, recordWin } from "./game/stats";
 import { canShare, type EndView, type Overlay, render, revealDuration, showHeart, showToast } from "./ui";
 import { loadDefinitions, loadGuesses, loadSolutions } from "./words";
 
@@ -28,16 +28,23 @@ let loading = true;
 
 let store = loadStore(localStorage);
 
+// Names the Puzzle in progress, so its result counts once even when it is finished in several tabs.
+let puzzleId: string;
+const newPuzzleId = (): string => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
 const guessesLoaded = loadGuesses();
 
 // A Sent Puzzle is neither drawn from the Solution list nor marked in the played pool.
 function sentPuzzle(word: string): GameState {
+  puzzleId = newPuzzleId();
   return newPuzzle(word, words, { loading, sent: true });
 }
 
 function randomPuzzle(): GameState {
-  const { entry, played } = drawUnplayed(solutions, store.played, Math.random);
-  store = { ...store, played };
+  const drawn = drawFromStorage(localStorage, store, solutions, Math.random);
+  store = drawn.store;
+  puzzleId = newPuzzleId();
+  const { entry } = drawn;
   return newPuzzle(entry.word, words, { hard: entry.hard, loading });
 }
 
@@ -72,17 +79,19 @@ const incoming = await takeLink();
 let pendingSent: string | null = null;
 
 // A finished Puzzle's result waits here for the next persist(), which adds it to the freshly read stats.
-let endResult: ((stats: Stats) => Stats) | undefined;
+let endResult: EndResult | undefined;
 
 // The Puzzle in progress is saved after every change, so a reload restores it.
 function persist(): void {
   const { solution, hard, sent, guesses, current } = state;
-  const puzzle = { solution, hard, sent, guesses: guesses.map((g) => g.word), current };
+  const puzzle = { id: puzzleId, solution, hard, sent, guesses: guesses.map((g) => g.word), current };
   store = saveStore(localStorage, { ...store, puzzle }, endResult);
   endResult = undefined;
 }
 
 const restored = store.puzzle ? restorePuzzle(store.puzzle, words, { loading }) : null;
+// A restored Puzzle keeps its id, so the tabs that restored it share one result.
+puzzleId = store.puzzle?.id ?? newPuzzleId();
 const sentWord = incoming && incoming !== "bad" ? incoming : null;
 // A link replaces a finished, missing or untouched Puzzle at once; one with Guesses waits for the abandon question.
 const askFirst = sentWord !== null && restored?.status === "playing" && restored.guesses.length > 0;
@@ -118,7 +127,10 @@ function recordEnd(): void {
   // Copied now: the closure runs in persist(), by which time `state` may already be the next Puzzle.
   const { status, hard } = state;
   const guessesUsed = state.guesses.length;
-  endResult = (stats) => (status === "won" ? recordWin(stats, guessesUsed, hard) : recordLoss(stats, hard));
+  endResult = {
+    id: puzzleId,
+    apply: (stats) => (status === "won" ? recordWin(stats, guessesUsed, hard) : recordLoss(stats, hard)),
+  };
 }
 
 function startPuzzle(): void {
@@ -156,10 +168,16 @@ function onKey(key: string): void {
   else if (key === "dismiss") dismissEndSheet();
   else if (key === "send" || key === "send-again") setOverlay({ kind: "send", input: "", error: null, link: null });
   else if (key === "share") void shareLink();
-  else if (key === "stats") setOverlay({ kind: "stats", stats: store.stats });
+  else if (key === "stats") openStats();
   else if (key === "how" || key === "about") setOverlay({ kind: key });
   else if (key === "close") setOverlay(null);
   else dispatch(eventFromKeyName(key));
+}
+
+// Other tabs may have saved results since this tab last did.
+function openStats(): void {
+  store = { ...store, stats: currentStats(localStorage, store) };
+  setOverlay({ kind: "stats", stats: store.stats });
 }
 
 // A Puzzle in progress is only given up after the player confirms.
