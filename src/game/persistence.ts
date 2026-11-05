@@ -8,6 +8,8 @@ const VERSION = 1;
 export type SavedPuzzle = {
   solution: string;
   hard: boolean;
+  // Absent in saves made before Sent Puzzles existed.
+  sent?: boolean;
   guesses: string[];
   current: string;
 };
@@ -37,6 +39,7 @@ function isSavedPuzzle(v: any): v is SavedPuzzle {
   return (
     isFullWord(v?.solution) &&
     typeof v.hard === "boolean" &&
+    (v.sent === undefined || typeof v.sent === "boolean") &&
     Array.isArray(v.guesses) &&
     v.guesses.length <= MAX_GUESSES &&
     v.guesses.every(isFullWord) &&

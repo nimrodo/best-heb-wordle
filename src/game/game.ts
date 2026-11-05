@@ -12,6 +12,8 @@ export type GameState = {
   // True while `words` is only a partial list (the full Guess list is still downloading).
   readonly loading: boolean;
   readonly hard: boolean;
+  // A Sent Puzzle: chosen by another player, never counted in stats.
+  readonly sent: boolean;
   readonly guesses: readonly Guess[];
   readonly current: string;
   readonly keys: Readonly<Record<string, Mark>>;
@@ -73,15 +75,15 @@ function mergeKeys(keys: GameState["keys"], guess: Guess): GameState["keys"] {
 export function newPuzzle(
   solution: string,
   words: ReadonlySet<string>,
-  { hard = false, loading = false } = {},
+  { hard = false, loading = false, sent = false } = {},
 ): GameState {
-  return { solution, words, loading, hard, guesses: [], current: "", keys: {}, toast: null, status: "playing" };
+  return { solution, words, loading, hard, sent, guesses: [], current: "", keys: {}, toast: null, status: "playing" };
 }
 
 // Rebuilds a Puzzle in progress from its saved Guesses. Saved Guesses were valid when
 // played, so they are scored without consulting the word list.
 export function restorePuzzle(
-  saved: { solution: string; hard: boolean; guesses: readonly string[]; current: string },
+  saved: { solution: string; hard: boolean; sent?: boolean; guesses: readonly string[]; current: string },
   words: ReadonlySet<string>,
   { loading = false } = {},
 ): GameState {
@@ -92,7 +94,7 @@ export function restorePuzzle(
       ? "lost"
       : "playing";
   return {
-    ...newPuzzle(saved.solution, words, { hard: saved.hard, loading }),
+    ...newPuzzle(saved.solution, words, { hard: saved.hard, sent: saved.sent ?? false, loading }),
     guesses,
     current: status === "playing" ? saved.current : "",
     keys: guesses.reduce(mergeKeys, {}),
@@ -101,9 +103,9 @@ export function restorePuzzle(
 }
 
 // What abandoning a Puzzle in progress counts as: a loss once any Guess was submitted
-// (a partly typed word does not count), otherwise nothing at all.
+// (a partly typed word does not count), otherwise nothing at all. A Sent Puzzle never counts.
 export function abandonOutcome(state: GameState): "lost" | null {
-  return state.status === "playing" && state.guesses.length > 0 ? "lost" : null;
+  return state.status === "playing" && state.guesses.length > 0 && !state.sent ? "lost" : null;
 }
 
 // Her usual opening: the surprise heart fires when exactly these three Guesses have been

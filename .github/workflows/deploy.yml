@@ -3,7 +3,6 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -16,6 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -25,27 +27,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-  pipeline:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: pipeline
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - run: uv run pytest
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-
   deploy:
-    needs: [build, pipeline]
-    if: github.event_name != 'pull_request'
+    needs: [test, build]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
