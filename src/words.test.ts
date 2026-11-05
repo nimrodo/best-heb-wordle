@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
-import guessesText from "../public/guesses.txt?raw";
-import definitionsText from "../public/definitions.json?raw";
-import solutionsText from "../public/solutions.json?raw";
 import extraHardText from "../pipeline/book_hard.txt?raw";
+import definitionsText from "../public/definitions.json?raw";
+import guessesText from "../public/guesses.txt?raw";
+import solutionsText from "../public/solutions.json?raw";
 import type { SolutionEntry } from "./game/draw";
-import { WORD_LENGTH, normalise } from "./game/game";
+import { normalise, WORD_LENGTH } from "./game/game";
 
 const guesses = new Set(guessesText.split("\n").filter(Boolean));
 const solutions: SolutionEntry[] = JSON.parse(solutionsText);

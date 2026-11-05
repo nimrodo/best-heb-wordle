@@ -1,4 +1,4 @@
-import { normalise, type GameEvent } from "./game";
+import { type GameEvent, normalise } from "./game";
 
 // On-screen key names are the letter itself, or "enter" / "backspace".
 // SI-1452 without the sofit keys, listed in drawn order, left to right (.kb-row is forced ltr in CSS even though the
@@ -12,11 +12,33 @@ export const KEY_ROWS: readonly (readonly string[])[] = [
 // Hebrew letter on each physical key of the standard Hebrew layout, used when the
 // player's keyboard is set to English.
 const LETTER_BY_CODE: Record<string, string> = {
-  KeyE: "ק", KeyR: "ר", KeyT: "א", KeyY: "ט", KeyU: "ו", KeyI: "ן", KeyO: "ם", KeyP: "פ",
-  KeyA: "ש", KeyS: "ד", KeyD: "ג", KeyF: "כ", KeyG: "ע", KeyH: "י", KeyJ: "ח", KeyK: "ל",
-  KeyL: "ך", Semicolon: "ף",
-  KeyZ: "ז", KeyX: "ס", KeyC: "ב", KeyV: "ה", KeyB: "נ", KeyN: "מ", KeyM: "צ",
-  Comma: "ת", Period: "ץ",
+  KeyE: "ק",
+  KeyR: "ר",
+  KeyT: "א",
+  KeyY: "ט",
+  KeyU: "ו",
+  KeyI: "ן",
+  KeyO: "ם",
+  KeyP: "פ",
+  KeyA: "ש",
+  KeyS: "ד",
+  KeyD: "ג",
+  KeyF: "כ",
+  KeyG: "ע",
+  KeyH: "י",
+  KeyJ: "ח",
+  KeyK: "ל",
+  KeyL: "ך",
+  Semicolon: "ף",
+  KeyZ: "ז",
+  KeyX: "ס",
+  KeyC: "ב",
+  KeyV: "ה",
+  KeyB: "נ",
+  KeyN: "מ",
+  KeyM: "צ",
+  Comma: "ת",
+  Period: "ץ",
 };
 
 type KeyInput = Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey">;

@@ -1,4 +1,4 @@
-import { TOAST_NOT_IN_LIST, TOAST_TOO_SHORT, WORD_LENGTH, normalise } from "./game";
+import { normalise, TOAST_NOT_IN_LIST, TOAST_TOO_SHORT, WORD_LENGTH } from "./game";
 
 // Obfuscation only: the key ships in the bundle, so this just keeps the word from being
 // readable in the URL. Each letter becomes a byte (its offset from א), XORed with a key byte.
@@ -8,7 +8,10 @@ const ALEF = 0x5d0;
 // Expects a word from checkSendWord, so letters are already in normal form.
 export function encodeWord(word: string): string {
   const bytes = [...word].map((letter, i) => (letter.charCodeAt(0) - ALEF) ^ KEY[i]);
-  return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
 }
 
 // null for anything that is not a payload encodeWord could have made.

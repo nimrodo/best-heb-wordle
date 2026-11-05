@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
+import { emptyStore, KEY, loadStore, type Store, saveStore } from "./persistence";
 import { emptyStats, recordWin } from "./stats";
-import { KEY, emptyStore, loadStore, saveStore, type Store } from "./persistence";
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {
   const data = new Map(Object.entries(initial));

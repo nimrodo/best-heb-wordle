@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { emptyStats, hardLine, recordLoss, recordWin, summarise, type Stats } from "./stats";
+import { emptyStats, hardLine, recordLoss, recordWin, type Stats, summarise } from "./stats";
 
 const play = (stats: Stats, results: (number | "L")[], hard = false): Stats =>
   results.reduce((s, r) => (r === "L" ? recordLoss(s, hard) : recordWin(s, r, hard)), stats);

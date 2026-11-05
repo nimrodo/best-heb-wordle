@@ -1,5 +1,15 @@
 import { describe, expect, test } from "vitest";
-import { TOAST_LOADING, abandonOutcome, isOpeningCombo, TOAST_NOT_IN_LIST, newPuzzle, reduce, restorePuzzle, type GameEvent, type GameState } from "./game";
+import {
+  abandonOutcome,
+  type GameEvent,
+  type GameState,
+  isOpeningCombo,
+  newPuzzle,
+  reduce,
+  restorePuzzle,
+  TOAST_LOADING,
+  TOAST_NOT_IN_LIST,
+} from "./game";
 
 const words = new Set(["שולחנ", "מחברת", "ספרימ", "ילדימ", "שמיימ", "מקלדת"]);
 
